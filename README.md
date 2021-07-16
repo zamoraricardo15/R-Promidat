@@ -6,10 +6,14 @@ Topics:
 2) Supervised Learning - Analytics
 
 
-    The K-Nearest Neighbors Method
+    *The K-Nearest Neighbors Method
+    
       Distances and dissimilarities
+      
       Confusion matrix
+      
       Error analysis and ROC curves
+    
     *Neural Networks (Deep Learning)
     *Decision Trees (CART Method)
     *Logistic regression
