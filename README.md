@@ -8,11 +8,11 @@ Topics:
 
     *The K-Nearest Neighbors Method
     
-      Distances and dissimilarities
+         Distances and dissimilarities
       
-      Confusion matrix
+         Confusion matrix
       
-      Error analysis and ROC curves
+         Error analysis and ROC curves
     
     *Neural Networks (Deep Learning)
     
@@ -21,29 +21,29 @@ Topics:
     
     *Logistic regression
     
-    Linear regression
+         Linear regression
     
-    Multiple Regression
+         Multiple Regression
     
-    Regression Ridge
+         Regression Ridge
     
-    LASSO regression
+         LASSO regression
     
-    Logistic Regression for Classification Problems
+         Logistic Regression for Classification Problems
     
-    LASSO Regression for Classification Problems
+         LASSO Regression for Classification Problems
     
-    Ridge Regression for Classification Problems
+         Ridge Regression for Classification Problems
     
     *Support Vector Machines
     
     *Consensus methods (Ensemble methods)
     
-    Random forests
+         Random forests
     
-    Boosting methods
+         Boosting methods
     
-    Extreme Gradient Boosting
+         Extreme Gradient Boosting
     
 3) Calibration and Selection of Models
 
