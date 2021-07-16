@@ -4,7 +4,7 @@ Data Mining homeworks, algorithms, and excercises
 Topics:
 1) Basic Concepts and R Programming
 2) Supervised Learning - Analytics
-    *The K-Nearest Neighbors Method
+    The K-Nearest Neighbors Method
       Distances and dissimilarities
       Confusion matrix
       Error analysis and ROC curves
