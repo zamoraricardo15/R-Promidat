@@ -1,2 +1,2 @@
 # R-Promidat
-Data Mining algorithm and excercises
+Data Mining homeworks, algorithms, and excercises
