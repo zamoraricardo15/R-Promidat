@@ -1,0 +1,1056 @@
+---
+title: "Tarea 13 y 14_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "7/3/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+Tarea 13 y 14
+Mineria de Datos I
+Ricardo Zamora Mennigke
+
+```{r cars}
+library(stringr)
+library(rvest)
+library(dplyr)
+library(ggplot2)
+library(readxl)
+#library(tidyverse)
+library(lubridate)
+```
+
+
+1. [8 puntos] Explique en lenguaje natural el significado de cada una de las siguientes expresiones regulares y realice un ejemplo.
+
+a) \\d{1,2}-\\d{1,2}-\\d{4}
+Sirve para extraer digitos que coincide entre 1 y 2 dos veces el digito de 0 al 9 seguido por un guion luego de nuevo digitos que coincide entre 1 y 2 dos veces el digito de 0 al 9 seguido por un guion, y finalmente extraer digitos que coincide 4 veces el digito de 0 al 9 seguido. Esto segun el formato costarricense puede correponder a un numero de telefono.
+Ejemplo: 88-11-5555
+```{r cache=TRUE}
+texto <- 'el telefono es 88-11-5555'
+patrones <- str_view_all(texto, pattern = "\\d{1,2}-\\d{1,2}-\\d{4}")
+patrones
+```
+
+
+b) \\w+\\@ \\w+ \\. com
+caracteres alfanumericos antes de @ y despues de un especio caracteres alfanumericos con .com al final separado con un espacio. Es decir, extrae correos electronicos, pero con espacios. Dado que presenta espacios tiene ciertas diferencias respecto a un correo comun.
+Ejemplo: 	info@ oldemarrodriguez . com
+```{r cache=TRUE}
+texto <- 'el correo electronico del profesor es a.1-2-3  info@ oldemarrodriguez . com  wikipedia.com'
+patrones <- str_view_all(texto, pattern = "\\w+\\@ \\w+ \\. com")
+patrones
+```
+
+c) [A − Z][a − z] + (\\s[A − Z][a − z]+)∗
+Indica letras mayusculas seguida por letras minusculas en patron de espaciado seguidas de letra mayuscula y minuscula en un patron. Esto puede ser un nombre con apellidos aunque no se limita unicamente a ello. 
+Ejemplo: Oldemar Rodriguez
+```{r cache=TRUE}
+texto <- 'el correo electronico del profesor Oldemar Rodriguez es a.1-2-3  info@ oldemarrodriguez . com  wikipedia.com'
+patrones <- str_view_all(texto, pattern = "[A−Z][a−z]+(\\s[A−Z][a−z]+)∗")
+patrones
+```
+
+
+d) \\-?\\d+(\\,\\d+)?
+Signo guion con patron 0 o 1 vez, seguido de digitos, luego una coma y de nuevo digitos. Podria ser una cifra con decimales y puede ser negativo, en general puede esperarse un digito.
+Ejemplo: -100,1
+```{r cache=TRUE}
+texto <- 'El profesor resta -100,1 a 5039'
+patrones <- str_view_all(texto, pattern = "\\-?\\d+(\\,\\d+)?")
+patrones
+```
+
+
+2. [12 puntos] Con la funci´on str_view_all y utilizando como base el texto que se muestra a continuaci´on cree una sola expresi´on regular que permita extraer todos los patrones marcados en el texto.
+
+```{r cache=TRUE}
+texto <- 'Tenemos una serie de numeros 9 , 1 y 2 , debe extraerlos, aunque extraer n´umeros sueltos puede ser demasiado sencillo para un ejercicio, veamos que pasa si agregamos decimales por ejemplo 9.2 o 320.4 y hasta, por que no, 3.14159265359 , podemos tambi´en usar el signo de ’coma’ para separar los miles por ejemplo 3,450 o 2,981,009.21 aunque hay personas que prefieren utilizar el espacio en blanco para los miles, aunque esto aveces pueda causar problemas, por ejemplo, 9 822 067 o 5 129 .'
+
+```
+
+```{r cache=TRUE}
+patrones <- str_view_all(texto, pattern = "\\d+(.\\d+)*")
+patrones
+
+```
+
+3. [20 puntos] Una empresa de paraguas utiliza excel para llevar el control de las ventas realizadas cada mes, cada una de las tiendas administra de forma independiente su informaci´on, la due˜na de la empresa solicita un reporte de las ventas, pero identifican que existe una gran cantidad de inconsistencias entre los archivos de cada tienda, utilizando expresiones regulares y su conocimiento en manipulaci´on de datos realice lo siguiente.
+
+a) [2 puntos] Con la ayuda del paquete readxl cargue cada uno de los siguientes archivos ventas_heredia.xlsx, ventas_san_pedro.xlsx, ventas_cartago.xlsx y ventas_jaco.xlsx. Para ello puede guiarse del siguiente c´odigo: > readxl::read_excel("ruta del archivo")
+
+```{r cache=TRUE}
+setwd("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14")
+heredia <- readxl::read_excel("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/ventas_heredia.xlsx")
+head(heredia)
+```
+
+```{r cache=TRUE}
+sanpedro <- readxl::read_excel("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/ventas_san_pedro.xlsx")
+head(sanpedro)
+```
+
+```{r cache=TRUE}
+cartago <- readxl::read_excel("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/ventas_cartago.xlsx")
+head(cartago)
+```
+
+```{r cache=TRUE}
+jaco <- readxl::read_excel("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/ventas_jaco.xlsx")
+head(jaco)
+```
+
+b) [6 puntos] Utilizando expresiones regulares resuelva cada una de las inconsistencias presentes en cada uno de los archivos. Adem´as, para cada una de las tablas de datos agregue una variable con el nombre de la regi´on.
+
+```{r cache=TRUE}
+heredia$cantidad <- str_extract(heredia$cantidad, pattern = "\\d+")
+head(heredia$cantidad)
+sanpedro$cantidad <- str_extract(sanpedro$cantidad, pattern = "\\d+")
+head(sanpedro$cantidad)
+cartago$cantidad <- str_extract(cartago$cantidad, pattern = "\\d+")
+head(cartago$cantidad)
+jaco$cantidad <- str_extract(jaco$cantidad, pattern = "\\d+")
+head(jaco$cantidad)
+```
+
+```{r cache=TRUE}
+heredia$cantidad <- str_remove_all(heredia$cantidad, pattern = "[[:blank:]]") 
+heredia$cantidad <- as.numeric(heredia$cantidad)
+head(heredia$cantidad)
+sanpedro$cantidad <- str_remove_all(sanpedro$cantidad, pattern = "[[:blank:]]") 
+sanpedro$cantidad <- as.numeric(sanpedro$cantidad)
+head(sanpedro$cantidad)
+cartago$cantidad <- str_remove_all(cartago$cantidad, pattern = "[[:blank:]]") 
+cartago$cantidad <- as.numeric(cartago$cantidad)
+head(cartago$cantidad)
+jaco$cantidad <- str_remove_all(jaco$cantidad, pattern = "[[:blank:]]") 
+jaco$cantidad <- as.numeric(jaco$cantidad)
+head(jaco$cantidad)
+```
+
+```{r cache=TRUE}
+
+heredia$precio <- str_remove_all(heredia$precio, pattern = ",") 
+heredia$precio <- as.numeric(heredia$precio)
+head(heredia$precio)
+as.numeric(sanpedro$precio)
+sanpedro$precio <- str_remove_all(sanpedro$precio, pattern = "[[:blank:]]") 
+sanpedro$precio <- as.numeric(sanpedro$precio)
+head(sanpedro$precio)
+as.numeric(cartago$precio)
+cartago$precio <- str_remove_all(cartago$precio, pattern = "[[:blank:]]") 
+cartago$precio <- as.numeric(cartago$precio)
+head(cartago$precio)
+as.numeric(jaco$precio)
+jaco$precio <- str_remove_all(jaco$precio, pattern = "[[:blank:]]") 
+jaco$precio <- as.numeric(jaco$precio)
+head(jaco$precio)
+
+heredia$total <- str_remove_all(heredia$total, pattern = ",") 
+heredia$total <- as.numeric(heredia$total)
+head(heredia$total)
+as.numeric(sanpedro$total)
+sanpedro$total <- str_remove_all(sanpedro$total, pattern = "[[:blank:]]") 
+sanpedro$total <- as.numeric(sanpedro$total)
+head(sanpedro$total)
+as.numeric(cartago$total)
+cartago$total <- str_remove_all(cartago$total, pattern = "[[:blank:]]") 
+cartago$total <- as.numeric(cartago$total)
+head(cartago$total)
+as.numeric(jaco$total)
+jaco$total <- str_remove_all(jaco$total, pattern = "[[:blank:]]") 
+jaco$total <- as.numeric(jaco$total)
+head(jaco$total)
+```
+
+```{r cache=TRUE}
+
+heredia$region <- "Heredia"
+head(heredia)
+sanpedro$region <- "San Pedro"
+head(sanpedro)
+cartago$region <- "Cartago" 
+head(cartago)
+jaco$region <- "Jaco" 
+head(jaco)
+```
+
+```{r cache=TRUE}
+jaco2 <- jaco
+jaco2$fecha <- str_remove_all(jaco2$fecha, pattern = "del")
+jaco2$fecha <- str_remove_all(jaco2$fecha, pattern = "de")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " enero ", replacement = "01")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " febrero ", replacement = "02")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " marzo ", replacement = "03")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " abril ", replacement = "04")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " mayo ", replacement = "05")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " junio ", replacement = "06")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " julio ", replacement = "07")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " agosto ", replacement = "08")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " septiembre ", replacement = "09")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " octubre ", replacement = "10")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " noviembre ", replacement = "11")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = " diciembre ", replacement = "12")
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = "2018", replacement = "18") 
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = "[[:blank:]]", replacement = "-") 
+jaco2$fecha <- str_replace(jaco2$fecha, pattern = "[[:blank:]]", replacement = "-") 
+head(jaco2$fecha)
+```
+
+```{r cache=TRUE}
+heredia2 <- heredia
+heredia2$fecha <- str_replace(heredia2$fecha, pattern = "/", replacement = "-")
+heredia2$fecha <- str_replace(heredia2$fecha, pattern = "/", replacement = "-")
+head(heredia2$fecha)
+```
+
+```{r cache=TRUE}
+cartago2 <- cartago
+cartago2$fecha <- strsplit(cartago2$fecha,"-")
+cartago2$fecha <- matrix(unlist(cartago2$fecha), ncol=3, byrow=TRUE)
+cartago2$fecha <- paste(cartago2$fecha[,2], cartago2$fecha[,1], cartago2$fecha[,3],sep="-")
+
+head(cartago2$fecha)
+```
+
+```{r cache=TRUE}
+jaco2$fecha <- str_remove_all(jaco2$fecha, pattern = "[[:blank:]]")
+cartago2$fecha <- str_remove_all(cartago2$fecha, pattern = "[[:blank:]]")
+sanpedro$fecha <- str_remove_all(sanpedro$fecha, pattern = "[[:blank:]]")
+heredia2$fecha <- str_remove_all(heredia2$fecha, pattern = "[[:blank:]]")
+head(heredia2)
+head(sanpedro)
+head(cartago2)
+head(jaco2)
+```
+
+c) [4 puntos] Unifique todos los archivos de excel en un solo data.frame que sea consistente en cada una de sus variables. Puede ayudarse de los paquetes dplyr, lubridate y, ademas de lo visto de expresiones regulares.
+
+```{r cache=TRUE}
+library(dplyr)
+library(lubridate)
+sanpedro$mes <- month(sanpedro$fecha)
+head(sanpedro)
+heredia2$mes <- month(heredia2$fecha)
+head(heredia2)
+cartago2$mes <- month(cartago2$fecha)
+head(cartago2)
+jaco2$mes <- month(jaco2$fecha)
+head(jaco2)
+```
+
+```{r cache=TRUE}
+library(dplyr)
+library(lubridate)
+cartago3 <- data.frame(cartago2, stringsAsFactors = FALSE)
+heredia3 <- data.frame(heredia2, stringsAsFactors = FALSE)
+sanpedro3 <- data.frame(sanpedro, stringsAsFactors = FALSE)
+jaco3 <- data.frame(jaco2, stringsAsFactors = FALSE)
+unificado <- rbind(cartago3, heredia3, jaco3, sanpedro3)
+
+head(unificado)
+```
+
+d) [2 puntos] Instale el paquete DT y con la ayuda de este paquete imprima la tabla de datos obtenida en el punto anterior. Para ello puede guiarse del siguiente c´odigo: > DT::datatable(data = {Tabla_de_datos}, width = "100%")
+
+```{r cache=TRUE}
+library(DT)
+unificado2 <- DT::datatable(data = {unificado}, width = "100%")
+unificado2
+```
+
+e) [6 puntos] Realice un gr´afico en ggplot en el que se muestre el nombre y la cantidad total vendida en el mes de diciembre del empleado con mayores ventas en dicho mes para cada una de las regiones
+
+
+```{r cache=TRUE}
+unificado <- unificado[unificado[, "mes"] == 12,]
+head(unificado)
+```
+
+```{r cache=TRUE}
+dici <- unificado %>% group_by(region) %>% 
+  top_n(1, vendedor) %>% arrange(vendedor)
+```
+
+```{r cache=TRUE}
+ggplot(data = dici, aes(x = vendedor, y = total, fill= region)) +
+  geom_bar(stat = "identity") + 
+  labs(title = "Vendedor con mayores ventas por region en diciembre")
+```
+
+Se muestra que por region fue memo escamilla el que mas vendio en Jaco con un total de alrededor de 130000, pamale guevara en San Pedro con poco mas de 25000, pedro jimenez y stephany grijalba en heredia y caratgo respectivamente con casi 50000.
+
+
+4. [20 puntos] Utilizando los datos de la clasificaci´on de la liga Santander (liga espa˜nola), publicados por el diario AS en la p´agina Datos de la clasificaci´on, realice los siguientes ejercicios.
+
+a) [2 puntos] Realice la lectura de la p´agina web utilizando el paquete rvest.
+
+```{r cache=TRUE}
+library(rvest)
+direccion <- "https://resultados.as.com/resultados/futbol/primera/2018_2019/clasificacion/"
+pagina <- read_html(direccion, encoding = "UTF-8")
+pagina
+```
+
+b) [6 puntos] Extraiga la tabla. Una vez extra´ıda la tabla, obtenga todas las variables de la subtabla ‘Total’ y de las subtablas ‘En Casa’ y ‘Fuera’ solo los puntos obtenidos.
+
+```{r cache=TRUE}
+tabla <- html_node(pagina, xpath = "//*[@class = 'tabla-datos table-hover']")
+tabla
+```
+
+```{r cache=TRUE}
+tabla <- html_table(tabla)
+tabla
+```
+
+```{r cache=TRUE}
+subtabla <- tabla[,c(1:9, 16)]
+subtabla
+```
+
+c) [6 puntos] Extraiga tambi´en el aforo del estadio de cada equipo, el cual solo se encuentra al dar clic en un equipo.
+
+```{r cache=TRUE}
+barcelona <- html_nodes(pagina, xpath = "//a[@class = 'cont-enlace-equipo']") 
+barcelona
+barcelona <- html_attr(barcelona, name = "href")
+barcelona
+enlaces <- barcelona[1:20]
+enlaces
+```
+
+```{r cache=TRUE}
+num.aforos <- c()
+raiz <- "https://resultados.as.com/"
+
+for (i in 1:20){
+enlaces <- html_node(pagina, xpath = paste0('//*[@class = "tabla-datos table-hover"]/tbody/tr[', i, ']/th/a'))
+  direccion <- html_attr(enlaces, name = "href")
+  aforo <- read_html(paste0(raiz, direccion))
+  info <- html_nodes(aforo, xpath = '//div[@class="row"]')
+  pos.prod <- which(str_detect(info, pattern="Aforo"))
+    if(length(pos.prod) == 0){
+      num.aforo <- NA
+      
+    }else{
+      num.aforo <- html_children(info[[pos.prod]])[2]
+      num.aforo <- html_text(num.aforo)
+      num.aforo <- str_extract(num.aforo, pattern = "\\d+")
+    }
+  num.aforos <- c(num.aforos, num.aforo)
+}
+
+num.aforos
+```
+
+
+```{r cache=TRUE}
+num.aforos <- as.data.frame(num.aforos)
+subtabla[,1] <- str_remove_all(subtabla[,1], pattern = "[[:blank:]]") 
+subtabla[,1] <- str_remove_all(subtabla[,1], pattern = "\n")
+subtabla[,1] <- str_remove_all(subtabla[,1], pattern = "\\d+")
+subtabla[,2] <- str_remove_all(subtabla[,2], pattern = "[[:blank:]]") 
+subtabla[,3] <- str_remove_all(subtabla[,3], pattern = "[[:blank:]]")
+subtabla[,4] <- str_remove_all(subtabla[,4], pattern = "[[:blank:]]")
+subtabla[,5] <- str_remove_all(subtabla[,5], pattern = "[[:blank:]]")
+subtabla[,6] <- str_remove_all(subtabla[,6], pattern = "[[:blank:]]")
+subtabla[,7] <- str_remove_all(subtabla[,7], pattern = "[[:blank:]]")
+subtabla[,8] <- str_remove_all(subtabla[,8], pattern = "[[:blank:]]")
+subtabla[,9] <- str_remove_all(subtabla[,9], pattern = "[[:blank:]]")
+subtabla[,10] <- str_remove_all(subtabla[,10], pattern = "[[:blank:]]")
+subtabla
+```
+
+```{r cache=TRUE}
+names(subtabla) <- subtabla[1,]
+subtabla <- subtabla[-1,]
+names(subtabla)[9] <- "Pts.Casa"
+names(subtabla)[10] <- "Pts.Fuera"
+subtabla
+
+```
+
+d) [2 puntos] Convierta la tabla en un data.frame y aseg´urese de que las variables sean del tipo correcto.
+
+```{r cache=TRUE}
+subta <- cbind(subtabla, num.aforos) 
+subta <- as.data.frame(subta) 
+str(subta)
+```
+
+e) [4 puntos] Realice un An´alisis de Componentes Principales sobre la tabla y muestre en un solo gr´afico el plano principal y el c´ırculo de correlaci´on. Interprete el resultado. Para esto utilice la funci´on PCA(....) del paquete FactoMineR.
+
+```{r cache=TRUE}
+library(dummies)
+subta$Equipo <- factor(subta$Equipo)
+subta$Pts. <- as.numeric(subta$Pts.)
+subta$PJ <- as.numeric(subta$PJ)
+subta$PG <- as.numeric(subta$PG)
+subta$PE  <- as.numeric(subta$PE )
+subta$PP  <- as.numeric(subta$PP )
+subta$GF <- as.numeric(subta$GF)
+subta$GC  <- as.numeric(subta$GC )
+subta$Pts.Casa <- as.numeric(subta$Pts.Casa)
+subta$Pts.Fuera <- as.numeric(subta$Pts.Fuera)
+subta$num.aforos <- as.numeric(subta$num.aforos)
+str(subta)
+
+```
+
+```{r cache=TRUE}
+
+subta.disyuntivo <- dummy.data.frame(subta[, -c(1)])
+
+```
+
+```{r cache=TRUE}
+
+library(factoextra)
+library(FactoMineR)
+#install.packages("broom", type="binary")
+#install.packages("pillar", type="binary")
+#library(broom)
+#library(tidyverse)
+library("devtools")
+library(Rcpp)
+#install_github("kassambara/factoextra")
+
+res.pca <- prcomp(subta[, -c(1,3)],  scale = TRUE)
+
+fviz_pca_biplot(res.pca) 
+
+
+```
+El circulo de correlacion junto al plano principal muestra que el modelo PCA, logra explicar en las dos componentes mas de un 80% de variabilidad, componente 1 (66,58%) y Componente 2 (15,6%). Aqui resulta notorio que hay una agrupacion inicial de caracteristicas en terminos de PTS, GF, Pts.Casa, PTS.Afuera, PG, y numaforos, es decir, se denota que los equipos se agrupan casi que por ganadores. En este cumulo se ve asociado significativamente equipos como el Barcelona, Rela Medrid y Atletico. Por su parte en el centro se denotan los equipos mas promedios donde confluyen todas las caracteristicas y se denota que existe aqui una serie de equipos que se caracterizan especialmente por su entremedio entre ganador y empates, como el Valencia, Getafe, Athletic. Existe otro grupo de caracteristicas denotado por GC y PP, que denota perdidas y goles en contra donde se denota caracteristicos varios como el RAyo en especial, ademas huesca, Cena y Levante, entre otros.
+
+5. [10 puntos] Con la ayuda de RSelenium obtenga las ´ultimas 5 publicaciones del Facebook del Ministerio de Salud https://touch.facebook.com/pg/msaludcr/posts, asi como los comentarios de cada una. Guarde los resultados en archivos csv. Debe incluir el c´odigo en el html, pero no debe ejecutarlo, es decir, agregue la opci´on eval = FALSE en el chunk.
+
+
+```{r cache=TRUE}
+
+library(wdman)
+library(RSelenium)
+
+```
+
+```{r cache=TRUE}
+
+puerto <- 4444L 
+servidor <- wdman::selenium(port = puerto)
+
+```
+
+```{r cache=TRUE}
+
+remDr <- remoteDriver(port = puerto, browserName = "firefox")
+remDr$open()
+
+```
+
+```{r cache=TRUE}
+# Cargar librerías
+library(wdman)
+library(RSelenium)
+library(rvest)
+library(stringr)
+
+# Ir a la página de Facebook
+remDr$navigate("https://touch.facebook.com/pg/msaludcr/posts/")
+
+
+```
+
+
+
+```{r cache=TRUE}
+# Obtener publicaciones hasta la fecha 20 de Mayo
+fecha.ultima <- Sys.Date()
+fecha.limite <- as.Date("2020-07-03")
+
+while (fecha.ultima >= fecha.limite) {
+  script <- "window.scrollTo(0, document.body.scrollHeight)"
+  remDr$executeScript(script)
+  Sys.sleep(2)
+  
+  posts <- remDr$findElements(using = "xpath", "//article")
+  info.post <- read_html(posts[[length(posts)]]$getElementAttribute("outerHTML")[[1]])
+  info.post <- html_node(info.post, xpath = "//article")
+  data.store <- info.post %>% html_attr(name = "data-store")
+  fecha.ultima <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+    str_extract("(?<=publishtime)\\d+") %>% as.numeric() %>% 
+    as_datetime()
+}
+
+r <- data.frame()
+posts <- remDr$findElements(using = "xpath", "//article")
+
+for (i in 1:length(posts)) {
+  # Extraer información de cada publicación.
+  info.post <- read_html(posts[[i]]$getElementAttribute("outerHTML")[[1]])
+  info.post <- html_node(info.post, xpath = "//article")
+  
+  data.store <- info.post %>% html_attr(name = "data-store")
+  
+  if(length(data.store) > 0) {
+    ## Fecha
+    fecha.post <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+      str_extract("(?<=publishtime)\\d+") %>% as.numeric() %>% 
+      as_datetime()
+    if(length(fecha.post) == 0) fecha.post <- NA
+    
+    ## ID USUARIO
+    id.pagina <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+      str_extract(paste0("(?<=actorid)\\d+"))
+    if(length(id.pagina) == 0) id.pagina <- NA
+    
+    ## ID PAGINA
+    id.post <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+      str_extract(paste0("(?<=postid)\\d+"))
+    if(length(id.post) == 0) id.post <- NA
+    
+    ## Texto de la publicación
+    texto <- html_node(info.post, xpath = 
+                         "//div[@class = 'story_body_container']/div/span/p")
+    texto <- html_text(texto)
+    texto
+    
+    ## Reacciones
+    reacciones <- html_node(info.post, xpath = 
+                              "footer/div/div/a/div/div[1]/div")
+    reacciones <- reacciones %>% html_text()
+    if(is.na(reacciones)){
+      reacciones <- NA
+    } else if(str_detect(reacciones, "mil")) {
+      reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+      reacciones <- str_replace(reacciones, "\\,", "\\.")
+      reacciones <- as.numeric(reacciones) * 1000
+    } else {
+      reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+      reacciones <- str_replace(reacciones, "\\,", "\\.")
+      reacciones <- as.numeric(reacciones)
+    }
+    
+    ## Comentarios
+    comentarios <- html_node(info.post, xpath = 
+                               "footer/div/div/a/div/div[2]/span[1]")
+    comentarios <- comentarios %>% html_text()
+    if(is.na(comentarios)) {
+      comentarios <- NA
+    } else if(str_detect(comentarios, "mil")) {
+      comentarios <- str_extract(comentarios, "\\d+([[:punct:]]\\d+)?")
+      comentarios <- str_replace(comentarios, ",", ".")
+      comentarios <- as.numeric(comentarios) * 1000
+    } else {
+      comentarios <- str_extract(comentarios, "\\d+([[:punct:]]\\d+)?")
+      comentarios <- str_replace(comentarios, ",", ".")
+      comentarios <- as.numeric(comentarios)
+    }
+    
+    
+    ## Compartidas
+    compartidas <- html_node(info.post, xpath = 
+                               "footer/div/div/a/div/div[2]/span[2]")
+    compartidas <- compartidas %>% html_text()
+    if(is.na(compartidas)){
+      compartidas <- NA
+    } else if(str_detect(compartidas, "mil")) {
+      compartidas <- str_extract(compartidas, "\\d+([[:punct:]]\\d+)?")
+      compartidas <- str_replace(compartidas, ",", ".")
+      compartidas <- as.numeric(compartidas) * 1000
+    } else {
+      compartidas <- str_extract(compartidas, "\\d+([[:punct:]]\\d+)?")
+      compartidas <- str_replace(compartidas, ",", ".")
+      compartidas <- as.numeric(compartidas)
+    }
+    
+    r <- rbind(r, data.frame(fecha.post, id.pagina, id.post, texto, 
+                             reacciones, comentarios, compartidas))
+  }
+}
+
+publicaciones <- r
+publicaciones[1:5, ]
+
+write.table(publicaciones, "Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_publicaciones2.csv", sep = ",", dec = ".", row.names = F)
+```
+
+```{r eval=FALSE}
+# Extraer publicaciones
+posts <- remDr$findElements(using = "xpath", "//article")
+
+# Extraer información de una publicación.
+info.post <- read_html(posts[[1]]$getElementAttribute("outerHTML")[[1]])
+info.post <- html_node(info.post, xpath = "//article")
+
+data.store <- info.post %>% html_attr(name = "data-store")
+
+## Fecha
+fecha <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+  str_extract("(?<=publishtime)\\d+") %>% as.numeric() %>% 
+  as_datetime()
+if(length(fecha.post) == 0) fecha.post <- NA
+
+## ID USUARIO
+id.pagina <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+  str_extract(paste0("(?<=actorid)\\d+"))
+if(length(id.pagina) == 0) id.pagina <- NA
+
+## ID PAGINA
+id.post <- data.store %>% str_remove_all("[[:punct:]]") %>% 
+  str_extract(paste0("(?<=postid)\\d+"))
+if(length(id.post) == 0) id.post <- NA
+
+## Texto de la publicación
+texto <- html_node(info.post, xpath = 
+                     "//div[@class = 'story_body_container']/div/span/p")
+texto <- html_text(texto)
+texto
+
+## Reacciones
+reacciones <- html_node(info.post, xpath = 
+                          "footer/div/div/a/div/div[1]/div")
+reacciones <- reacciones %>% html_text()
+if(is.na(reacciones)){
+  reacciones <- NA
+} else if(str_detect(reacciones, "mil")) {
+  reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+  reacciones <- str_replace(reacciones, "\\,", "\\.")
+  reacciones <- as.numeric(reacciones) * 1000
+} else {
+  reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+  reacciones <- str_replace(reacciones, "\\,", "\\.")
+  reacciones <- as.numeric(reacciones)
+}
+
+## Comentarios
+comentarios <- html_node(info.post, xpath = 
+                          "footer/div/div/a/div/div[2]/span[1]")
+comentarios <- comentarios %>% html_text()
+if(is.na(comentarios)){
+  comentarios <- NA
+} else if(str_detect(comentarios, "mil")) {
+  comentarios <- str_extract(comentarios, "\\d+([[:punct:]]\\d+)?")
+  comentarios <- str_replace(comentarios, ",", ".")
+  comentarios <- as.numeric(comentarios) * 1000
+} else {
+  comentarios <- str_extract(comentarios, "\\d+([[:punct:]]\\d+)?")
+  comentarios <- str_replace(comentarios, ",", ".")
+  comentarios <- as.numeric(comentarios)
+}
+
+## Compartidas
+compartidas <- html_node(info.post, xpath = 
+                           "footer/div/div/a/div/div[2]/span[2]")
+compartidas <- compartidas %>% html_text()
+if(is.na(compartidas)){
+  compartidas <- NA
+} else if(str_detect(compartidas, "mil")) {
+  compartidas <- str_extract(compartidas, "\\d+([[:punct:]]\\d+)?")
+  compartidas <- str_replace(compartidas, ",", ".")
+  compartidas <- as.numeric(compartidas) * 1000
+} else {
+  compartidas <- str_extract(compartidas, "\\d+([[:punct:]]\\d+)?")
+  compartidas <- str_replace(compartidas, ",", ".")
+  compartidas <- as.numeric(compartidas)
+}
+
+comentarios <- r
+comentarios
+
+write.table(comentarios, "Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_comentarios5.csv", sep = ",", dec = ".", row.names = F)
+```
+
+
+
+6. [15 puntos] Obtenga el tipo reacci´on y la cantidad de cada uno de estos para cada una de las publicaciones obtenidas en el punto anterior, para ello puede ayudarse del c´odigo visto en clase en la secci´on Redes Sociales. Guarde el resultado en un archivo. Debe incluir el c´odigo en el html, pero no debe ejecutarlo, es decir, agregue la opci´on eval = FALSE en el chunk.
+
+```{r eval=FALSE}
+# Extraer publicaciones
+# Ir a las reacciones de una publicación
+link <- paste0(
+  "https://touch.facebook.com/ufi/reaction/profile/browser/?ft_ent_identifier=", 
+  publicaciones$id.post[2]
+)
+remDr$navigate(link)
+
+r <- data.frame()
+for (post in publicaciones$id.post) {
+  link <- paste0(
+    "https://touch.facebook.com/ufi/reaction/profile/browser/?ft_ent_identifier=", 
+    post
+  )
+  remDr$navigate(link)
+  Sys.sleep(2)
+  
+  reacciones <- html_node(info.post, xpath = 
+                          "footer/div/div/a/div/div[1]/div")
+  reacciones <- reacciones %>% html_text()
+  if(is.na(reacciones)){
+    reacciones <- NA
+  } else if(str_detect(reacciones, "mil")) {
+    reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+    reacciones <- str_replace(reacciones, "\\,", "\\.")
+    reacciones <- as.numeric(reacciones) * 1000
+  } else {
+  reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+  reacciones <- str_replace(reacciones, "\\,", "\\.")
+  reacciones <- as.numeric(reacciones)
+  }
+
+  
+  megusta <- 0
+  meencanta <- 0
+  meimporta <- 0
+  medivierte <- 0
+  meenoja <- 0
+  measombra <- 0
+  meentristece <- 0
+
+    for (i in 2:length(reacciones)) {
+      reacciones <- html_node(info.post, xpath = 
+                          "footer/div/div/a/div/div[1]/div")
+    reacciones <- reacciones %>% html_text()
+    if(is.na(reacciones)){
+      reacciones <- NA
+    } else if(str_detect(reacciones, "mil")) {
+      reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+      reacciones <- str_replace(reacciones, "\\,", "\\.")
+      reacciones <- as.numeric(reacciones) * 1000
+    } else {
+    reacciones <- str_extract(reacciones, "\\d+([[:punct:]]\\d+)?")
+    reacciones <- str_replace(reacciones, "\\,", "\\.")
+    reacciones <- as.numeric(reacciones)
+    }
+    } 
+  
+  r <- rbind(r, data.frame(
+    "id.pagina" = publicaciones$id.pagina[1], "id.post" = post, megusta, 
+    meencanta, meimporta, medivierte, meenoja, measombra, meentristece))
+}
+
+reacciones <- r
+reacciones
+
+
+
+write.table(comentarios, "Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_reaccion.csv", sep = ",", dec = ".", row.names = F)
+```
+
+7. [15 puntos] Cargue los archivos obtenidos en los 2 puntos anteriores y con ellos realice lo siguiente:
+
+a) Realice un an´alisis de sentimientos utilizando las reacciones.
+
+```{r cache=TRUE}
+publicaciones <- read.table(file = "C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_publicaciones.csv", sep = ",", dec = ".", header = T)
+reacciones <- read.table(file = "C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_reacciones.csv", sep = ",", dec = ".", header = T)
+str(publicaciones)
+str(reacciones)
+```
+
+```{r cache=TRUE}
+library(dplyr)
+library(lubridate)
+
+publicaciones.reacciones <- inner_join(publicaciones, reacciones[, -1], by = "id.post")
+
+```
+
+```{r cache=TRUE}
+sentimientos <- publicaciones.reacciones %>%
+  group_by(id.post) %>%
+  summarise(positivas = sum(megusta + meencanta + meimporta), 
+            negativas = sum(meenoja + meentristece))
+
+sentimientos
+```
+
+```{r cache=TRUE}
+ggplot(sentimientos) + 
+  geom_bar(aes(x = id.post, y = positivas, fill = "positivas"), stat = "identity", position = "dodge") +
+  geom_bar(aes(x = id.post, y = negativas, fill = "negativas"), stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("#E53935", "#40C4FF"), labels = c("Negativo", "Positivo")) +
+  theme_minimal(base_family = "Tahoma") +  
+  labs(title = "Cantidad de reacciones positivas y negativas",
+       caption = "Fuente de datos : www.facebook.com",
+       y = "",
+       x = "",
+       fill = "Tipo de reacción") +
+  theme(legend.position = "bottom",
+        plot.background = element_rect(fill = "gray98", color = "gray98"),
+        panel.grid.major = element_line(color = "gray85"),
+        panel.grid.minor = element_line(color = "gray85")) 
+```
+
+Dado que solo son 5 publicaciones, resulta poco practico reflejarlos en un grafico por lo que se procura analizar las reacciones positivas y negativas por publicacion. Para facilidad de lectura se convierte el id de publicacion en un numero de publicacion. En el siguiente grafico.
+
+
+```{r cache=TRUE}
+library(dplyr)
+library(lubridate)
+
+publicaciones.reacciones <- inner_join(publicaciones, reacciones[, -1], by = "publicacion")
+
+```
+
+```{r cache=TRUE}
+sentimientos <- publicaciones.reacciones %>%
+  group_by(publicacion) %>%
+  summarise(positivas = sum(megusta + meencanta + meimporta), 
+            negativas = sum(meenoja + meentristece))
+
+sentimientos
+```
+
+```{r cache=TRUE}
+ggplot(sentimientos) + 
+  geom_bar(aes(x = publicacion, y = positivas, fill = "positivas"), stat = "identity", position = "dodge") +
+  geom_bar(aes(x = publicacion, y = negativas, fill = "negativas"), stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("#E53935", "#40C4FF"), labels = c("Negativo", "Positivo")) +
+  theme_minimal(base_family = "Tahoma") +  
+  labs(title = "Cantidad de reacciones positivas y negativas",
+       caption = "Fuente de datos : www.facebook.com",
+       y = "",
+       x = "",
+       fill = "Tipo de reacción") +
+  theme(legend.position = "bottom",
+        plot.background = element_rect(fill = "gray98", color = "gray98"),
+        panel.grid.major = element_line(color = "gray85"),
+        panel.grid.minor = element_line(color = "gray85")) 
+```
+
+El grafico muestra enumeradas las 5 publicaciones mas nuevas de la pagina de facebook del ministerio de salud la publicacion 1 es de las mas recientes hacia 5 la mas antigua, se denota que hubo una noticia con respuesta bastante negativa. En general el grafico denota la reaccion negativa hacia las noticas de salud mas recientes en esta red social.
+
+b) Realice un an´alisis de sentimientos utilizando los comentarios.
+
+```{r cache=TRUE}
+comentarios <- read.table(file = "C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_comentariostodos.csv", sep = ",", dec = ".", header = T)
+comentarios$comentario <- as.character(comentarios$comentario,ordered = TRUE)
+str(comentarios)
+```
+
+```{r cache=TRUE}
+com <- comentarios$comentario
+com <- str_squish(com)
+head(com)
+```
+
+```{r cache=TRUE}
+library(readr)
+negativas <- read_file("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14//PalabrasNegativas.csv", locale = locale(encoding = "Windows-1252")) %>% str_split("\n")
+negativas <- negativas[[1]]
+positivas <- read_file("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14//PalabrasPositivas.csv", locale = locale(encoding = "Windows-1252")) %>% str_split("\n")
+positivas <- positivas[[1]]
+```
+
+```{r cache=TRUE}
+com <- str_to_lower(com)
+com <- str_remove_all(com, "[[:punct:]]")
+head(com)
+```
+
+```{r cache=TRUE}
+sentimental.score <- function(text, positive.words, negative.words) {
+  # Inicio de la función    
+  sentimental.score <-  lapply(text,
+  function(text, positive.words, negative.words) {
+    # Separamos el texto en palabras independientes
+    words = unlist(str_split(text, " "))
+    # Conteo de palabras positivas
+    positive = !is.na(match(words, positive.words))
+    # Conteo de palabras negativas
+    negative = !is.na(match(words, negative.words))
+    # Diferencia entre palabras positivas y negativas
+    score = sum(positive) - sum(negative)
+    # Se retorna el texto,puntaje y la fecha de publicación
+    out <- list(text = text, score =  ifelse(score > 0,"Positivo",ifelse(score == 0, "Neutral", "Negativo")))
+    return(out)
+  }, positive.words, negative.words)
+  # Se convierte a un data.frame y se da formato a las columnas.
+  out <- data.frame(matrix(unlist(sentimental.score),ncol = 2,byrow = T),stringsAsFactors = F)
+  colnames(out) <- c("text", "score")
+  return(out)
+  # Fin de la función
+}
+```
+
+```{r cache=TRUE}
+score <- sentimental.score(com, positivas, negativas)
+head(score$score)
+opinion <- score %>% group_by(score) %>% summarise(n = n())
+opinion
+```
+
+
+
+```{r cache=TRUE}
+gear <- read.csv("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_comentariostodos.csv", sep = ",", dec = ".", header = T)
+geartweets <- gear$tweettext
+
+clean.text = function(x)
+{
+  # tolower
+  x = tolower(x)
+  # remove rt
+  x = gsub("rt", "", x)
+  # remove at
+  x = gsub("@\\w+", "", x)
+  # remove punctuation
+  x = gsub("[[:punct:]]", "", x)
+  # remove numbers
+  x = gsub("[[:digit:]]", "", x)
+  # remove links http
+  x = gsub("http\\w+", "", x)
+  # remove tabs
+  x = gsub("[ |\t]{2,}", "", x)
+  # remove blank spaces at the beginning
+  x = gsub("^ ", "", x)
+  # remove blank spaces at the end
+  x = gsub(" $", "", x)
+  return(x)
+}
+
+
+geartweets = clean.text(geartweets)
+
+neg.words <- read_file("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14//PalabrasNegativas.csv", locale = locale(encoding = "Windows-1252")) %>% str_split("\n")
+neg.words <- neg.words[[1]]
+pos.words <- read_file("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14//PalabrasPositivas.csv", locale = locale(encoding = "Windows-1252")) %>% str_split("\n")
+pos.words <- pos.words[[1]]
+
+neg.words = c(neg.words, 'wtf', 'fail')
+
+#Implementing our sentiment scoring algorithm
+require(plyr)
+require(stringr)
+require(stringi)
+
+score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
+{
+  
+
+  scores = laply(sentences, function(sentence, pos.words, neg.words) {
+    
+
+    sentence = gsub('[[:punct:]]', '', sentence)
+    sentence = gsub('[[:cntrl:]]', '', sentence)
+    sentence = gsub('\\d+', '', sentence)
+
+    sentence = tolower(sentence)
+
+    word.list = str_split(sentence, '\\s+')
+
+    words = unlist(word.list)
+
+    pos.matches = match(words, pos.words)
+    neg.matches = match(words, neg.words)
+
+    pos.matches = !is.na(pos.matches)
+    neg.matches = !is.na(neg.matches)
+    
+
+    score = sum(pos.matches) - sum(neg.matches)
+    
+    return(score)
+  }, pos.words, neg.words, .progress=.progress )
+  
+  scores.df = data.frame(score=scores, text=sentences)
+  return(scores.df)
+}
+
+sentiment.scores= score.sentiment(com, pos.words, neg.words, .progress='none')
+pos.mentioned = subset(sentiment.scores, score > 0)
+neu.mentioned = subset(sentiment.scores, score == 0)
+neg.mentioned = subset(sentiment.scores, score < 0)
+
+N= nrow(sentiment.scores)
+Npos = nrow(pos.mentioned)
+Nneu = nrow(neu.mentioned)
+Nneg = nrow(neg.mentioned)
+
+dftemp=data.frame(topic=c("Positive", "Negative", "Neutral" ), 
+                  number=c(Npos, Nneg, Nneu))
+```
+
+```{r cache=TRUE}
+ggplot(opinion, aes("Publicacion", n, fill = score)) + 
+  geom_bar(stat = "identity",position = "dodge") +
+  coord_flip() +
+  scale_fill_manual(values = c("#E53935","gray80","#40C4FF")) +
+  theme_minimal() +
+  labs(title = "Opinión de publicacion",
+       x = "", y = "Cantidad de comentarios",
+       fill = "Tipo", caption = "Fuente de datos : www.facebook.com") +
+  theme(legend.position = "top")
+```
+
+El grafico muestra que las opiniones se mantienen neutrales. Se corroboro con dos algoritmos distintos, sin dar a la causa de que todos sean neutrales comentarios.
+
+c) Con la ayuda de la funci´on paste una todo el texto de los comentarios y luego realice un wordcloud. Aseg´urese de limpiar adecuadamente el texto.
+
+```{r cache=TRUE}
+library(tm)
+library(wordcloud)
+```
+
+```{r cache=TRUE}
+#install.packages(readr")
+library(readr)
+
+ruta.archivo <- "C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Tarea 13 y 14/Tarea 13 y 14_Ricardo Zamora Mennigke_msaludcr_comentariostodos.csv"
+comentar <- readr::read_lines(ruta.archivo, locale = readr::locale(encoding = readr::guess_encoding(ruta.archivo)[1, 1][[1]]))
+
+comentar <- paste0(comentar, collapse = " ")
+```
+
+
+```{r cache=TRUE}
+text <- data.frame(doc_id = "Comentarios de publicaciones", text = comentar, stringsAsFactors = F)
+str(text)
+```
+
+```{r cache=TRUE}
+ds <- DataframeSource(text)
+corpus <- Corpus(ds)
+corpus
+```
+
+```{r cache=TRUE}
+corpus <- tm_map(corpus, removePunctuation) 
+corpus <- tm_map(corpus, content_transformer(tolower)) 
+corpus <- tm_map(corpus, removeNumbers) 
+corpus <- tm_map(corpus, removeWords, stopwords("spanish")) 
+corpus <- tm_map(corpus, PlainTextDocument)
+```
+
+```{r cache=TRUE}
+term_document_matrix <- TermDocumentMatrix(corpus)
+term_document_matrix <- as.matrix(term_document_matrix)
+term_document_matrix
+```
+
+
+```{r cache=TRUE}
+terms.vector <- sort(rowSums(term_document_matrix), decreasing = TRUE)
+term_df <- data.frame(word = names(terms.vector), freq = terms.vector)
+head(term_df)
+```
+
+```{r cache=TRUE}
+wordcloud(
+  words = term_df$word, freq = term_df$freq,scale = c(4,.5), min.freq = 5,
+  max.words = 300, random.order = FALSE, rot.per = 0.15, 
+  colors = brewer.pal(8, "Dark2")
+)
+```
+
+El wordcloud muestra gran gama de palabras relevantes dentro de los comentarios de las 5 ultimas publicaciones del ministerio de salud en facebook. Las mas relevante parecen ser casos, gente, distritos, extranjeros, contagiados, casa, hoy, covid e informacion.
+

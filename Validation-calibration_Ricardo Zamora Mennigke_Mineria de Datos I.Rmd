@@ -1,0 +1,909 @@
+---
+title: "Tarea 11_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "6/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+#Tarea 11
+#Mineria de Datos I
+#Ricardo Zamora Mennigke
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(scales)
+library(xgboost)
+library(randomForest)
+```
+
+
+Ejercicio 1: [30 puntos] Para esta pregunta tambi´en usaremos los datos tumores.csv.
+
+1. El objetivo de este ejercicio es calibrar el m´etodo de ADA para esta Tabla de Datos. Aqu´ı interesa predecir en la variable tipo. Usando los paquetes snow y traineR programe en paralelo 5 Validaciones Cruzadas con 10 grupos calibrando el modelo de acuerdo con los tres tipos de algoritmos que permite, discrete, real y gentle. Para medir la calidad de m´etodo sume la cantidad de 1’s detectados en los diferentes grupos. Luego grafique las 5 iteraciones para los tres algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor? Para generar los modelos predictivos use las siguientes instrucciones:
+
+
+```{r cache=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+datos<-read.csv("tumores.csv",dec='.',header=T)
+head(datos)
+```
+
+```{r cache=TRUE}
+library(caret)
+datos$tipo <- factor(datos$tipo,ordered = TRUE)
+datos$imagen <- as.integer(datos$imagen,ordered = TRUE)
+summary(datos)
+```
+
+```{r cache=TRUE}
+str(datos)
+```
+
+```{r cache=TRUE}
+dim(datos)
+```
+
+```{r cache=TRUE}
+barplot(prop.table(table(datos$tipo)),col=c("orange","blue","green"),main="Distribución de la variable por predecir")
+```
+Ejercicio desbalanceado
+
+
+
+
+
+1. El objetivo de este ejercicio es calibrar el m´etodo de ADA para esta Tabla de Datos. Aqu´ı interesa predecir en la variable tipo. Para esto genere 5 Validaciones Cruzadas con 10 grupos calibrando el modelo de acuerdo con los tres tipos de algoritmos que permite, discrete, real y gentle. Para medir la calidad de m´etodo sume la cantidad de 1’s detectados en los diferentes grupos. Luego grafique las 5 iteraciones para los tres algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor? Para generar los modelos predictivos use las siguientes instrucciones:
+
+
+```{r cache=TRUE}
+library(traineR)
+library(snow)
+library(caret)
+
+
+clp <- makeCluster(5, type = "SOCK")
+
+
+clusterExport(clp, "datos")
+ignore <- clusterEvalQ(clp, {
+      library(traineR)
+
+      ejecutar.prediccion <- function(datos, formula, muestra,metodo, ...) {
+        ttesting <- datos[muestra, ]
+        taprendizaje <- datos[-muestra, ]
+        modelo <- metodo(formula, data = taprendizaje, ...)
+        prediccion <- predict(modelo, ttesting, type = "class")
+        MC <- confusion.matrix(ttesting, prediccion)
+        return(MC)
+      }
+      return(NULL)
+})
+
+numero.filas <- nrow(datos)
+cantidad.grupos <- 10
+cantidad.validacion.cruzada <- 5
+algoritmos <- c("discrete", "real", "gentle")
+
+deteccion.no.discrete <- c()
+deteccion.no.real <- c()
+deteccion.no.gentle <- c()
+
+
+tiempo.paralelo <- Sys.time()
+
+for(i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos)
+  no.discrete <- 0
+  no.real <- 0
+  no.gentle <- 0
+  
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]
+            
+    clusterExport(clp, "muestra")
+    
+    resultado <- clusterApply(clp, algoritmos, function(pkernels) {
+      MC <- ejecutar.prediccion(datos, tipo ~ .,muestra, train.ada , iter=80,nu=1)
+      no.val <- MC[2, 2] ####PARA DETECTAR 1'S DE CANCER
+      valores <- list(Tipo = pkernels, Resultado = no.val)
+      valores
+    })
+    
+    for (j in 1:length(algoritmos)) {
+      if (resultado[[j]][[1]] == "discrete") 
+         no.discrete <- no.discrete + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "real")
+         no.real <- no.real + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "gentle")
+         no.gentle <- no.gentle + resultado[[j]][[2]] 
+
+    }
+  }
+      
+  deteccion.no.discrete[i] <- no.discrete
+  deteccion.no.real[i] <- no.real
+  deteccion.no.gentle[i] <- no.gentle
+}
+
+stopCluster(clp) # No olvidar cerrar el proceso
+
+# Despliega el tiempo que tarda en ejecutarse
+tiempo.paralelo <- Sys.time() - tiempo.paralelo
+tiempo.paralelo
+```
+
+
+```{r cache=TRUE}
+# Gráfico
+resultados <- data.frame("discrete"     = deteccion.no.discrete,
+                         "real"     = deteccion.no.real,
+                         "gentle" = deteccion.no.gentle) # Preparamos los datos
+
+par(oma=c(0, 0, 0, 8)) # Hace espacio para la leyenda
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "Detección del 1s de tumor version en paralelo", 
+        xlab = "Número de iteración",
+        ylab = "Cantidad de 1s tumor",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+
+
+
+```
+El mejor parece ser gentle en la quinta iteracion logra detectar el mayor numero, en los demas casos resulta tener un conteo similar a discrete y real.
+
+2. Repita el ejercicio anterior, pero esta vez en lugar de sumar la cantidad de 1’s, promedie los errores globales cometidos en los diferentes grupos (folds). Luego grafique las 5 iteraciones para los tres algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+```{r cache=TRUE}
+library(traineR)
+library(snow)
+library(caret)
+##intento 1
+
+clp <- makeCluster(5, type = "SOCK")
+
+clusterExport(clp, "datos")
+ignore <- clusterEvalQ(clp, {
+      library(traineR)
+
+      ejecutar.prediccion <- function(datos, formula, muestra,metodo, ...) {
+        ttesting <- datos[muestra, ]
+        taprendizaje <- datos[-muestra, ]
+        modelo <- metodo(formula, data = taprendizaje, ...)
+        prediccion <- predict(modelo, ttesting, type = "class")
+        MC <- confusion.matrix(ttesting, prediccion)
+        return(MC)
+      }
+      return(NULL)
+})
+
+# Constructor del cluster
+numero.filas <- nrow(datos)
+cantidad.validacion.cruzada <- 5
+cantidad.grupos <- 10
+algoritmos <- c("discrete", "real", "gentle")
+
+deteccion.error.pot.discrete <- c()
+deteccion.error.pot.real <- c()
+deteccion.error.pot.gentle <- c()
+
+# Exportamos paquetes a los procesadores
+ignore <- clusterEvalQ(clp, {
+  library(dplyr)
+  library(traineR)
+  return(NULL)
+})
+
+# Exportamos los datos y las funciones a los procesadores
+clusterExport(clp, list("datos", "ejecutar.prediccion", "ejecutar.prediccion.particular"))
+
+# Para medir el tiempo de ejecución
+tiempo.paralelo <- Sys.time()
+
+# Validación cruzada 5 veces
+for(i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos)  # Crea los 10 grupos
+
+  error.pot.discrete <- 0
+  error.pot.real <- 0
+  error.pot.gentle <- 0
+
+  # Este ciclo es el que hace validación cruzada con 10 grupos
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]  # Por ser una lista requiere de doble paréntesis
+    # Exportamos la muestra a los procesadores
+    clusterExport(clp, "muestra")
+    
+
+    resultado <- clusterApply(clp, algoritmos, function(pkernels) {
+      MC <- ejecutar.prediccion(datos, tipo ~ .,muestra, train.ada, iter=80, nu=1)
+
+      # Cálculo del ERROR
+      error.metodo <- (1-(sum(diag(MC)))/sum(MC))*100
+      valores <- list(Tipo = pkernels, Error = error.metodo)
+      return(valores)
+    })
+    
+    for (j in seq_along(algoritmos)) {
+      if (resultado[[j]][[1]] == "discrete")
+        error.pot.discrete <- error.pot.discrete + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "real")
+        error.pot.real <- error.pot.real + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "gentle")
+        error.pot.gentle <- error.pot.gentle + resultado[[j]][[2]]
+    }
+    
+  }
+
+  deteccion.error.pot.discrete[i] <- error.pot.discrete / cantidad.grupos
+  deteccion.error.pot.real[i] <- error.pot.real / cantidad.grupos
+  deteccion.error.pot.gentle[i] <- error.pot.gentle / cantidad.grupos
+}
+stopCluster(clp)
+
+tiempo.paralelo <- Sys.time() - tiempo.paralelo
+tiempo.paralelo
+```
+
+```{r cache=TRUE}
+# Gráfico
+resultados <- data.frame("discrete"     = deteccion.error.pot.discrete,
+                         "real"     = deteccion.error.pot.real,
+                         "gentle" = deteccion.error.pot.gentle) 
+
+par(oma=c(0, 0, 0, 8)) 
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "Error global del 1s de tumor version en paralelo", 
+        xlab = "Número de iteración",
+        ylab = "Porcentaje de error de 1s tumor",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+
+
+```
+
+
+
+En este caso el error global de real y discrete tienen el error mas bajo pero es cero lo que puede indicar que no estan logrando estimar bien el error. Discrete por su parte presenta un error pronunciado respecto a los dos anteriores
+
+3. ¿Cu´al algoritmo usar´ıa con base en la informaci´on obtenida en los dos ejercicios anteriores?
+
+En este caso resulta complejo tomar una decision ya que a nivel de error y conteo sumatorio de 1s, se dan resultados similares en el sentido en las distintas iteraciones tienen similar variabilidad a nivel de conteo. Gentle a nivel de conteo resulta mejor, a nivel de error global y al ver que en ambos graficos presentan error y conteo similar se confirma que para el caso de ada es recomendable usar gentle.
+
+
+Ejercicio 2: [30 puntos] Para esta pregunta usaremos nuevamente los datos tumores.csv.
+
+1. El objetivo de este ejercicio es calibrar el m´etodo de kknn para esta Tabla de Datos. Aqu´ı interesa predecir en la variable tipo. Usando los paquetes snow y traineR programe en paralelo 5 Validaciones Cruzadas con 10 grupos calibrando el modelo de acuerdo con todos los tipos de algoritmos que permite train.kknn en el par´ametro kernel, estos algoritmos son: rectangular, triangular, epanechnikov, biweight, triweight, cos, inv, gaussian y optimal. Para medir la calidad de m´etodo sume la cantidad de 1’s detectados en los diferentes grupos. Luego grafique las 5 iteraciones para todos algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+
+
+##Dado que en este ejercicio se busca el mejor algoritmo se usa aun un kmax=10 para limitar el tiempo de ejecucion y dejarlo para el ejercicio final
+
+
+```{r cache=TRUE}
+library(traineR)
+library(snow)
+library(caret)
+
+
+clp <- makeCluster(5, type = "SOCK")
+
+clusterExport(clp, "datos")
+ignore <- clusterEvalQ(clp, {
+      library(traineR)
+
+      ejecutar.prediccion <- function(datos, formula, muestra,metodo, ...) {
+        ttesting <- datos[muestra, ]
+        taprendizaje <- datos[-muestra, ]
+        modelo <- metodo(formula, data = taprendizaje, ...)
+        prediccion <- predict(modelo, ttesting, type = "class")
+        MC <- confusion.matrix(ttesting, prediccion)
+        return(MC)
+      }
+      return(NULL)
+})
+
+numero.filas <- nrow(datos)
+cantidad.grupos <- 10
+cantidad.validacion.cruzada <- 5
+algoritmos <- c("rectangular", "triangular", "epanechnikov", "biweight", "triweight", "cos", "inv", "gaussian", "optimal")
+
+deteccion.no.rectangular <- c()
+deteccion.no.triangular <- c()
+deteccion.no.epanechnikov <- c()
+deteccion.no.biweight <- c()
+deteccion.no.triweight <- c()
+deteccion.no.cos <- c()
+deteccion.no.inv <- c()
+deteccion.no.gaussian <- c()
+deteccion.no.optimal <- c()
+
+# Para medir el tiempo de ejecución
+tiempo.paralelo <- Sys.time()
+
+for(i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos)
+  no.rectangular <- 0
+  no.triangular <- 0
+  no.epanechnikov <- 0
+  no.biweight <- 0
+  no.triweight <- 0
+  no.cos <- 0
+  no.inv <- 0
+  no.gaussian <- 0
+  no.optimal <- 0
+  
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]
+            
+    ### Inserta estas 1 variable en cada peón
+    clusterExport(clp, "muestra")
+    
+    resultado <- clusterApply(clp, algoritmos, function(pkernels) {
+      MC <- ejecutar.prediccion(datos, tipo ~ .,muestra, train.knn , kmax=10, kernel = pkernels)
+      no.val <- MC[2, 2]
+      valores <- list(Tipo = pkernels, Resultado = no.val)
+      valores
+    })
+    
+    for (j in 1:length(algoritmos)) {
+      if (resultado[[j]][[1]] == "rectangular") 
+         no.rectangular <- no.rectangular + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "triangular")
+         no.triangular <- no.triangular + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "epanechnikov")
+         no.epanechnikov <- no.epanechnikov + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "biweight")
+         no.biweight <- no.biweight + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "triweight")
+         no.triweight <- no.triweight + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "cos")
+         no.cos <- no.cos + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "inv")
+         no.inv <- no.inv + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "gaussian")
+         no.gaussian <- no.gaussian + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "optimal")
+         no.optimal <- no.optimal + resultado[[j]][[2]]
+    }
+  }
+      
+  deteccion.no.rectangular[i] <- no.rectangular
+  deteccion.no.triangular[i] <- no.triangular 
+  deteccion.no.epanechnikov[i] <- no.epanechnikov 
+  deteccion.no.biweight[i] <- no.biweight 
+  deteccion.no.triweight[i] <- no.triweight 
+  deteccion.no.cos[i] <- no.cos 
+  deteccion.no.inv[i] <- no.inv 
+  deteccion.no.gaussian[i] <- no.gaussian 
+  deteccion.no.optimal[i] <- no.optimal 
+}
+
+stopCluster(clp) 
+
+
+tiempo.paralelo <- Sys.time() - tiempo.paralelo
+tiempo.paralelo
+```
+
+
+
+
+
+```{r cache=TRUE}
+resultados <- data.frame("rectangular" = deteccion.no.rectangular,
+                         "triangular" = deteccion.no.triangular,
+                         "epanechnikov" = deteccion.no.epanechnikov,
+                         "biweight" = deteccion.no.biweight,
+                         "triweight" = deteccion.no.triweight,
+                         "cos" = deteccion.no.cos,
+                         "inv" = deteccion.no.inv,
+                         "gaussian" = deteccion.no.gaussian,
+                         "optimal" = deteccion.no.optimal) 
+
+par(oma=c(0, 0, 0, 10)) # Hace espacio para la leyenda
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "kknn prediccion cantidad 1- tumor en paralelo", 
+        xlab = "Número de iteración",
+        ylab = "cantidad de 1-tumor",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+En este caso el que acumula la mejor cantidad es gaussian, es dificil de detectar ya que existe mucho traslape, especialmente con optimal. Al final parece que gaussian es el que mas casos logra estimar.
+
+
+2. Repita el ejercicio anterior, pero esta vez en lugar de sumar la cantidad de 1’s, promedie los errores globales cometidos en los diferentes grupos (folds). Luego grafique las 5 iteraciones para todos los algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+
+```{r cache=TRUE}
+library(traineR)
+library(snow)
+library(caret)
+
+
+clp <- makeCluster(5, type = "SOCK")
+
+clusterExport(clp, "datos")
+ignore <- clusterEvalQ(clp, {
+      library(traineR)
+
+      ejecutar.prediccion <- function(datos, formula, muestra,metodo, ...) {
+        ttesting <- datos[muestra, ]
+        taprendizaje <- datos[-muestra, ]
+        modelo <- metodo(formula, data = taprendizaje, ...)
+        prediccion <- predict(modelo, ttesting, type = "class")
+        MC <- confusion.matrix(ttesting, prediccion)
+        return(MC)
+      }
+      return(NULL)
+})
+
+numero.filas <- nrow(datos)
+cantidad.grupos <- 10
+cantidad.validacion.cruzada <- 5
+algoritmos <- c("rectangular", "triangular", "epanechnikov", "biweight", "triweight", "cos", "inv", "gaussian", "optimal")
+
+deteccion.error.rectangular <- c()
+deteccion.error.triangular <- c()
+deteccion.error.epanechnikov <- c()
+deteccion.error.biweight <- c()
+deteccion.error.triweight <- c()
+deteccion.error.cos <- c()
+deteccion.error.inv <- c()
+deteccion.error.gaussian <- c()
+deteccion.error.optimal <- c()
+
+# Para medir el tiempo de ejecución
+tiempo.paralelo <- Sys.time()
+
+for(i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos)
+  error.rectangular <- 0
+  error.triangular <- 0
+  error.epanechnikov <- 0
+  error.biweight <- 0
+  error.triweight <- 0
+  error.cos <- 0
+  error.inv <- 0
+  error.gaussian <- 0
+  error.optimal <- 0
+  
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]
+            
+    ### Inserta estas 1 variable en cada peón
+    clusterExport(clp, "muestra")
+    
+    resultado <- clusterApply(clp, algoritmos, function(pkernels) {
+      MC <- ejecutar.prediccion(datos, tipo ~ .,muestra, train.knn , kmax=10, kernel = pkernels)
+      # Cálculo del ERROR
+      error.metodo <- (1-(sum(diag(MC)))/sum(MC))*100
+      valores <- list(Tipo = pkernels, Error = error.metodo)
+      return(valores)
+    })
+    
+    for (j in 1:length(algoritmos)) {
+      if (resultado[[j]][[1]] == "rectangular") 
+         error.rectangular <- error.rectangular + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "triangular")
+         error.triangular <- error.triangular + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "epanechnikov")
+         error.epanechnikov <- error.epanechnikov + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "biweight")
+         error.biweight <- error.biweight + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "triweight")
+         error.triweight <- error.triweight + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "cos")
+         error.cos <- error.cos + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "inv")
+         error.inv <- error.inv + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "gaussian")
+         error.gaussian <- error.gaussian + resultado[[j]][[2]] 
+      else if (resultado[[j]][[1]] == "optimal")
+         error.optimal <- error.optimal + resultado[[j]][[2]]
+    }
+  }
+      
+  deteccion.error.rectangular[i] <- error.rectangular / cantidad.grupos
+  deteccion.error.triangular[i] <- error.triangular / cantidad.grupos
+  deteccion.error.epanechnikov[i] <- error.epanechnikov / cantidad.grupos
+  deteccion.error.biweight[i] <- error.biweight / cantidad.grupos
+  deteccion.error.triweight[i] <- error.triweight / cantidad.grupos
+  deteccion.error.cos[i] <- error.cos / cantidad.grupos
+  deteccion.error.inv[i] <- error.inv / cantidad.grupos
+  deteccion.error.gaussian[i] <- error.gaussian / cantidad.grupos
+  deteccion.error.optimal[i] <- error.optimal / cantidad.grupos
+}
+
+stopCluster(clp) 
+
+
+tiempo.paralelo <- Sys.time() - tiempo.paralelo
+tiempo.paralelo
+```
+
+
+```{r cache=TRUE}
+resultados <- data.frame("rectangular" = deteccion.error.rectangular,
+                         "triangular" = deteccion.error.triangular,
+                         "epanechnikov" = deteccion.error.epanechnikov,
+                         "biweight" = deteccion.error.biweight,
+                         "triweight" = deteccion.error.triweight,
+                         "cos" = deteccion.error.cos,
+                         "inv" = deteccion.error.inv,
+                         "gaussian" = deteccion.error.gaussian,
+                         "optimal" = deteccion.error.optimal) 
+
+par(oma=c(0, 0, 0, 10)) # Hace espacio para la leyenda
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "kknn error global 1- tumor en paralelo", 
+        xlab = "Número de iteración",
+        ylab = "error global de 1-tumor en paralelo",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+En este caso se denota que el error global es bastante traslapado entre distintos metodos. pareciera que los que menor error global presentan son triweight, biweight y cos. de aqui parece que triweight podria ser el mejor
+
+3. ¿Cu´al algoritmo usar´ıa con base en la informaci´on obtenida en los dos ejercicios anteriores?
+
+Para el caso de kknn resulta complejo decidir, al final se toma la decision de mejor usar triweight ya que es el que parece tener un mejor conteo de 1s respecto a biweight y cos, y en especial de gaussian. A pesar de que gaussian tiene mejor conteo, triweight parece desde un criterio personal tener una mejor estimacion conjunta cantidad-error global visualmente conluyendo. 
+
+
+Ejercicio 3: [40 puntos] Esta pregunta tambi´en utilizan nuevamente los datos tumores.csv.
+
+1. El objetivo de este ejercicio es comparar todos los m´etodos predictivos vistos en el curso con esta tabla de datos. Aqu´ı interesa predecir en la variable tipo, Usando los paquetes snow y traineR programe en paralelo 5 Validaciones Cruzadas con 10 grupos para los m´etodos SVM, KNN, ´Arboles, Bosques, Potenciaci´on, eXtreme Gradient Boosting, LDA, Bayes, Regresi´on Log´ıstica, ConsensoPropio y Redes Neuronales, para KNN y Potenciaci´on use los par´ametros obtenidos en las calibraciones realizadas en los ejercicios anteriores. Luego grafique las 5 iteraciones para todos los m´etodos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al m´etodos es el mejor?
+
+
+
+```{r cache=TRUE}
+library(caret)
+library(snow)
+library(MASS)
+library(class)
+
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data1<-read.csv("tumores.csv",dec='.',header=T)
+data1$tipo <- factor(data1$tipo,ordered = TRUE)
+datos <- data1[,-1]
+
+peones <- parallel::detectCores()
+clp <- makeCluster(peones, type = "SOCK")
+
+ejecutar.prediccion <- function(datos, formula, muestra, metodo, ...) {
+  ttesting <- datos[muestra, ]
+  ttraining <- datos[-muestra, ]
+  #modelo <- metodo(formula, data = ttraining, ...)
+  modelo <- do.call(metodo, list(formula, data = ttraining, ...))
+  prediccion <- predict(modelo, ttesting, type = "class")
+  MC <- confusion.matrix(ttesting, prediccion)
+  return(MC)
+}
+
+# La siguiente función permite fijar parámetros específicos para cada método, lo cual es útil para usar otros parámetros que no sean los default.
+
+ejecutar.prediccion.particular <- function(datos, formula, muestra, metodo) {
+  if(metodo == "train.svm"){return(ejecutar.prediccion(datos, formula, muestra, metodo, kernel = "radial", probability = FALSE))}
+  if(metodo == "train.knn"){return(ejecutar.prediccion(datos, formula, muestra, metodo, kmax = 80, type = "triweight"))}
+  if(metodo == "train.bayes"){return(ejecutar.prediccion(datos, formula, muestra, metodo))}
+  if(metodo == "train.rpart"){return(ejecutar.prediccion(datos, formula, muestra, metodo))}
+  if(metodo == "train.randomForest"){return(ejecutar.prediccion(datos, formula, muestra, metodo, importance = TRUE))}
+  if(metodo == "train.ada"){return(ejecutar.prediccion(datos, formula, muestra, metodo, iter = 50, nu = 1, type = "gentle"))}
+  if(metodo == "train.nnet"){return(ejecutar.prediccion(datos, formula, muestra, metodo, size = 5, rang = 0.1, decay = 5e-04, maxit = 100, trace = FALSE))}
+  if(metodo == "train.xgboost"){return(ejecutar.prediccion(datos, formula, muestra, metodo, nrounds = 79, print_every_n = 10, maximize = F , eval_metric = "error"))}
+  if(metodo == "train.glm"){return(ejecutar.prediccion(datos, formula, muestra, metodo))}
+  if(metodo == "train.neuralnet"){return(ejecutar.prediccion(datos, formula, muestra, metodo, hidden = c(8,6,4), linear.output = FALSE, threshold = 0.5, stepmax = 1e+06))}
+}
+
+# Constructor del cluster
+numero.filas <- nrow(datos)
+cantidad.validacion.cruzada <- 5
+cantidad.grupos <- 10
+metodos <- c("train.svm", "train.knn", "train.bayes", "train.rpart", "train.randomForest", "train.ada", "train.nnet", "train.xgboost", "train.neuralnet", "train.glm")
+
+deteccion.no.svm <- c()
+deteccion.no.knn <- c()
+deteccion.no.bayes <- c()
+deteccion.no.arbol <- c()
+deteccion.no.bosque <- c()
+deteccion.no.potenciacion <- c()
+deteccion.no.red <- c()
+deteccion.no.xgboost <- c()
+deteccion.no.red.neu <- c()
+deteccion.no.glm <- c()
+
+ignore <- clusterEvalQ(clp, {
+  library(dplyr)
+  library(traineR)
+  
+  return(NULL)
+})
+
+# Exportamos los datos y las funciones a los procesadores
+clusterExport(clp, list("datos", "ejecutar.prediccion", "ejecutar.prediccion.particular"))
+
+tiempo.paralelo <- Sys.time()
+
+# Validación cruzada 5 veces
+for(i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos)  # Crea los 10 grupos
+  no.svm <- 0
+  no.knn <- 0
+  no.bayes <- 0
+  no.arbol <- 0
+  no.bosque <- 0
+  no.potenciacion <- 0
+  no.red <- 0
+  no.xg  <- 0
+  no.red.neu <- 0
+  no.glm <- 0
+  
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]] 
+    clusterExport(clp, "muestra")
+    
+    resultado <- clusterApply(clp, metodos, function(metodo) {
+      MC <- ejecutar.prediccion.particular(datos = datos, formula = tipo~., muestra = muestra, metodo = metodo)
+      no.val <- MC[2, 2]
+      valores <- list(Tipo = metodo, Resultado = no.val)
+      return(valores)
+    })
+    
+    for (j in seq_along(metodos)) {
+      if (resultado[[j]][[1]] == "train.svm")
+        no.svm <- no.svm + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.knn")
+        no.knn <- no.knn + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.bayes")
+        no.bayes <- no.bayes + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.rpart")
+        no.arbol <- no.arbol + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.randomForest")
+        no.bosque <- no.bosque + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.ada")
+        no.potenciacion <- no.potenciacion + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.nnet")
+        no.red <- no.red + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.xgboost")
+        no.xg <- no.xg + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.neuralnet")
+        no.red.neu <- no.red.neu + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.glm")
+        no.glm <- no.glm + resultado[[j]][[2]]
+    }
+    
+  }
+  deteccion.no.svm[i] <- no.svm
+  deteccion.no.knn[i] <- no.knn
+  deteccion.no.bayes[i] <- no.bayes
+  deteccion.no.arbol[i] <- no.arbol
+  deteccion.no.bosque[i] <- no.bosque
+  deteccion.no.potenciacion[i] <- no.potenciacion
+  deteccion.no.red[i] <- no.red
+  deteccion.no.xgboost[i] <- no.xg
+  deteccion.no.red.neu[i] <- no.red.neu
+  deteccion.no.glm[i] <- no.glm
+}
+
+stopCluster(clp)
+
+tiempo.paralelo <- Sys.time() - tiempo.paralelo
+tiempo.paralelo
+
+```
+
+
+
+```{r cache=TRUE}
+
+resultados <- data.frame("svm" = deteccion.no.svm,
+                         "k_vecinos" = deteccion.no.knn,
+                         "bayes" = deteccion.no.bayes,
+                         "arboles" = deteccion.no.arbol,
+                         "bosques" = deteccion.no.bosque,
+                         "potenciacion" = deteccion.no.potenciacion,
+                         "redes_nnet" = deteccion.no.red,
+                         "xgboost" = deteccion.no.xgboost,
+                         "redes_neuralnet" = deteccion.no.red.neu, 
+                         "regresion_logistica" = deteccion.no.glm)
+
+par(oma=c(0, 0, 0, 8)) # Hace espacio para la leyenda
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "Detección del 1-tumores", 
+        xlab = "Número de iteración",
+        ylab = "Cantidad de 1-tumores",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+En este caso inicial la cantidad mejor detectada de 1-tumores es dificil de apreciar pero parece ser redes(nnet), aunque bosques aleatorios tambien parece tener una estimacion muy acertada. 
+
+2. Repita el ejercicio anterior, pero en lugar de sumar la cantidad de 1’s, promedie los errores globales cometidos en los diferentes grupos (folds). Luego grafique las 5 iteraciones para todos los m´etodos vistos en el curso en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+```{r cache=TRUE}
+library(snow)
+library(caret)
+
+peones <- parallel::detectCores()
+clp <- makeCluster(peones, type = "SOCK")
+
+ejecutar.prediccion <- function(datos, formula, muestra, metodo, ...) {
+  ttesting <- datos[muestra, ]
+  ttraining <- datos[-muestra, ]
+  #modelo <- metodo(formula, data = ttraining, ...)
+  modelo <- do.call(metodo, list(formula, data = ttraining, ...))
+  prediccion <- predict(modelo, ttesting, type = "class")
+  MC <- confusion.matrix(ttesting, prediccion)
+  return(MC)
+}
+
+# La siguiente función permite fijar parámetros específicos para cada método, lo cual es útil para usar otros parámetros que no sean los default.
+
+ejecutar.prediccion.particular <- function(datos, formula, muestra, metodo) {
+  if(metodo == "train.svm"){return(ejecutar.prediccion(datos, formula, muestra, metodo, kernel = "radial", probability = FALSE))}
+  if(metodo == "train.knn"){return(ejecutar.prediccion(datos, formula, muestra, metodo,  kmax = 100, kernel = "triweight"))}
+  if(metodo == "train.bayes"){return(ejecutar.prediccion(datos, formula, muestra, metodo))}
+  if(metodo == "train.rpart"){return(ejecutar.prediccion(datos, formula, muestra, metodo))}
+  if(metodo == "train.randomForest"){return(ejecutar.prediccion(datos, formula, muestra, metodo, importance = TRUE))}
+  if(metodo == "train.ada"){return(ejecutar.prediccion(datos, formula, muestra, metodo, iter = 100, nu = 1, type = "gentle"))}
+  if(metodo == "train.nnet"){return(ejecutar.prediccion(datos, formula, muestra, metodo, size = 5, rang = 0.1, decay = 5e-04, maxit = 100, trace = FALSE))}
+  if(metodo == "train.xgboost"){return(ejecutar.prediccion(datos, formula, muestra, metodo, nrounds = 79, print_every_n = 10, maximize = F , eval_metric = "error"))}
+  if(metodo == "train.glm"){return(ejecutar.prediccion(datos, formula, muestra, metodo))}
+  if(metodo == "train.neuralnet"){return(ejecutar.prediccion(datos, formula, muestra, metodo,hidden = c(8,6,4), linear.output = FALSE, threshold = 0.5, stepmax = 1e+06))}
+}
+
+
+# Constructor del cluster
+numero.filas <- nrow(datos)
+cantidad.validacion.cruzada <- 5
+cantidad.grupos <- 10
+metodos <- c("train.svm", "train.knn", "train.bayes", "train.rpart", "train.randomForest", "train.ada", "train.nnet",
+             "train.xgboost", "train.neuralnet", "train.glm")
+
+deteccion.error.svm <- c()
+deteccion.error.knn <- c()
+deteccion.error.bayes <- c()
+deteccion.error.arbol <- c()
+deteccion.error.bosque <- c()
+deteccion.error.potenciacion <- c()
+deteccion.error.red <- c()
+deteccion.error.xgboost <- c()
+deteccion.error.red.neu <- c()
+deteccion.error.glm <- c()
+
+# Exportamos paquetes a los procesadores
+ignore <- clusterEvalQ(clp, {
+  library(dplyr)
+  library(traineR)
+  return(NULL)
+})
+
+# Exportamos los datos y las funciones a los procesadores
+clusterExport(clp, list("datos", "ejecutar.prediccion", "ejecutar.prediccion.particular"))
+
+# Para medir el tiempo de ejecución
+tiempo.paralelo <- Sys.time()
+
+# Validación cruzada 5 veces
+for(i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos)  # Crea los 10 grupos
+  error.svm <- 0
+  error.knn <- 0
+  error.bayes <- 0
+  error.arbol <- 0
+  error.bosque <- 0
+  error.potenciacion <- 0
+  error.red <- 0
+  error.xg  <- 0
+  error.red.neu <- 0
+  error.glm <- 0
+  
+  # Este ciclo es el que hace validación cruzada con 10 grupos
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]  # Por ser una lista requiere de doble paréntesis
+    # Exportamos la muestra a los procesadores
+    clusterExport(clp, "muestra")
+    
+    resultado <- clusterApply(clp, metodos, function(metodo) {
+      MC <- ejecutar.prediccion.particular(datos = datos, formula = tipo~., muestra = muestra, metodo = metodo)
+      # Cálculo del ERROR
+      error.metodo <- (1-(sum(diag(MC)))/sum(MC))*100
+      valores <- list(Tipo = metodo, Error = error.metodo)
+      return(valores)
+    })
+    
+    for (j in seq_along(metodos)) {
+      if (resultado[[j]][[1]] == "train.svm")
+        error.svm <- error.svm + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.knn")
+        error.knn <- error.knn + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.bayes")
+        error.bayes <- error.bayes + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.rpart")
+        error.arbol <- error.arbol + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.randomForest")
+        error.bosque <- error.bosque + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.ada")
+        error.potenciacion <- error.potenciacion + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.nnet")
+        error.red <- error.red + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.xgboost")
+        error.xg <- error.xg + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.neuralnet")
+        error.red.neu <- error.red.neu + resultado[[j]][[2]]
+      else if (resultado[[j]][[1]] == "train.glm")
+        error.glm <- error.glm + resultado[[j]][[2]]
+    }
+    
+  }
+  deteccion.error.svm[i] <- error.svm / cantidad.grupos
+  deteccion.error.knn[i] <- error.knn / cantidad.grupos
+  deteccion.error.bayes[i] <- error.bayes / cantidad.grupos
+  deteccion.error.arbol[i] <- error.arbol / cantidad.grupos
+  deteccion.error.bosque[i] <- error.bosque / cantidad.grupos
+  deteccion.error.potenciacion[i] <- error.potenciacion / cantidad.grupos
+  deteccion.error.red[i] <- error.red / cantidad.grupos
+  deteccion.error.xgboost[i] <- error.xg / cantidad.grupos
+  deteccion.error.red.neu[i] <- error.red.neu / cantidad.grupos
+  deteccion.error.glm[i] <- error.glm / cantidad.grupos
+}
+stopCluster(clp)
+
+tiempo.paralelo <- Sys.time() - tiempo.paralelo
+tiempo.paralelo
+```
+
+
+```{r cache=TRUE}
+resultados <- data.frame("svm" = deteccion.error.svm,
+                         "k_vecinos" = deteccion.error.knn,
+                         "bayes" = deteccion.error.bayes,
+                         "arboles" = deteccion.error.arbol,
+                         "bosques" = deteccion.error.bosque,
+                         "potenciacion" = deteccion.error.potenciacion,
+                         "redes_nnet" = deteccion.error.red,
+                         "xgboost" = deteccion.error.xgboost,
+                         "redes_neuralnet" = deteccion.error.red.neu, 
+                         "regresion_logistica" = deteccion.error.glm)
+
+par(oma=c(0, 0, 0, 8)) # Hace espacio para la leyenda
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "Comparación del Error Global", 
+        xlab = "Número de iteración",
+        ylab = "Porcentaje de Error Global",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA, cex = 0.8,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+
+
+3. ¿Cu´al m´etodo usar´ıa con base en la informaci´on obtenida en los dos ejercicios anteriores?
+
+Resulta importante notar que tanto bosques, como arboles y potenciacion mantiene porcentajes de error bajo ademas es notorio el hecho de que los tres detectan junto a otros modelos como redes neuralnet cantidad, pero destacan sobre este en error global bajo. Pero analizando especialmente el error y cantidad conjuntamente si tuviera que seleccionarse solo uno se recomienda bosques que visualmente muestra un error apenas un poco mas abajo.
+
+
+
+
+

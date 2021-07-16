@@ -1,0 +1,987 @@
+---
+title: "Tarea 10_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "6/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+#Tarea 10
+#Mineria de Datos I
+#Ricardo Zamora Mennigke
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(scales)
+library(xgboost)
+library(randomForest)
+```
+
+
+Ejercicio 1: [25 puntos] En esta pregunta utiliza los datos (tumores.csv). Se trata de un conjunto de datos de caracter´ısticas del tumor cerebral que incluye cinco variables de primer orden y ocho de textura y cuatro par´ametros de evaluaci´on de la calidad con el nivel objetivo. La variables son: Media, Varianza, Desviaci´on est´andar, Asimetr´ıa, Kurtosis, Contraste, Energ´ıa, ASM (segundo momento angular), Entrop´ıa, Homogeneidad, Disimilitud, Correlaci´on, Grosor, PSNR (Pico de la relaci´on se˜nal-ruido), SSIM (´Indice de Similitud Estructurada), MSE (Mean Square Error), DC (Coeficiente de Dados) y la variable a predecir tipo (1 = Tumor, 0 = No-Tumor).
+
+1. Cargue la tabla de datos tumores.csv en R y ejecute un str(...), summary(...) y un dim(...), verifique la correcta lectura de los datos.
+
+```{r pruryjfhjel, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+datos<-read.csv("tumores.csv",dec='.',header=T)
+head(datos)
+```
+
+```{r presuweyruueyf8ryeioremaa, echo=TRUE}
+library(caret)
+datos$tipo <- factor(datos$tipo,ordered = TRUE)
+datos$imagen <- as.integer(datos$imagen,ordered = TRUE)
+summary(datos)
+```
+
+```{r preseufdgfggywruuremaa, echo=TRUE}
+str(datos)
+```
+
+```{r preseuywrdsgfdgguuremaa, echo=TRUE}
+dim(datos)
+```
+
+```{r pruiwuifrgegerhdessureg, echo=TRUE}
+barplot(prop.table(table(datos$tipo)),col=c("orange","blue","green"),main="Distribución de la variable por predecir")
+```
+Ejercicio desbalanceado
+
+2. El objetivo de este ejercicio es analizar la variaci´on del error (usando el enfoque trainingtesting) para la predicci´on de variable tipo (que indica 1 = Tumor, 0 = No-Tumor), para esto repita 5 veces el c´alculo de error global de predicci´on usando el m´etodo de los k vecinos m´as cercanos (use kmax=50) y con un 75 % de los datos para tabla aprendizaje y un 25 % para la tabla testing. Grafique los resultados.
+
+
+```{r pressuueyremaa, echo=TRUE}
+intrain <- createDataPartition(
+  y = datos$tipo,
+  p = .75,
+  list = FALSE
+)
+str(intrain)
+```
+
+```{r prywteburemaa, echo=TRUE}
+taprendizaje <- datos[ intrain,]
+ttesting  <- datos[-intrain,]
+
+nrow(taprendizaje)
+nrow(ttesting)
+```
+
+```{r prywtebfthstrhsuremaa, echo=TRUE}
+library(traineR)
+
+v.error.tt<-rep(0,5)
+for(i in 1:5) {
+  muestra <- sample(1:150,75)
+  ttesting <- datos[muestra,]
+  taprendizaje <- datos[-muestra,]
+  
+  # modelo <- train.kknn(tipo~.,data=taprendizaje,kmax=10)
+  modelo <- train.knn(tipo~.,data=taprendizaje,kmax=50)
+  
+  #prediccion <- predict(modelo,ttesting[,-5])
+  prediccion <- predict(modelo,ttesting,type = "class")
+  
+  ## Matriz de Confusión
+  # MC<-table(ttesting[,5],prediccion)
+  MC <- confusion.matrix(ttesting, prediccion)
+  # Porcentaje de buena clasificacion y de error
+  acierto<-sum(diag(MC))/sum(MC)
+  error <- 1- acierto
+  v.error.tt[i] <- error
+}  
+plot(v.error.tt,col="red",type="b",main="Variación del Error",xlab="Número de iteración",ylab="Estimación del Error")
+```
+
+3. El objetivo de este ejercicio es medir el error para la predicci´on de variable tipo, utilizando validaci´on cruzada con K grupos (K−fold cross-validation). Para esto usando el m´etodo de los k vecinos m´as cercanos (use kmax=50) realice una validaci´on cruzada 5 veces con 10 grupos (folds) y grafique el error obtenido en cada iteraci´on, agregue en este gr´afico los 5 errores generados en el ejercicio anterior.
+
+```{r prywtebfthstrdfvegreghhhsuremaa, echo=TRUE}
+suppressMessages(library(caret)) # Este paquete es usado para generar los grupos al azar
+
+n <- dim(datos)[1] # Aquí n=150
+## Vamos a generar el modelo dejando un grupo para testing y los demás datos para aprendizaje.
+v.error.kg<-rep(0,5)
+# Hacemos validación cruzada 5 veces para ver que el error se estabiliza
+for(i in 1:5) {
+  errori <- 0
+  # Esta instrucción genera los k=5 grupos (Folds)
+  grupos <- createFolds(1:n,5) # grupos$Fold0i es el i-ésimo grupo  
+  # Este ciclo es el que hace "cross-validation" (validación cruzada) con 5 grupos (Folds)
+  for(k in 1:5) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=50)
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.kg[i] <- errori/5
+}
+plot(v.error.kg, col = "magenta", type = "b", ylim = c(min(v.error.kg,v.error.tt), max(v.error.kg,v.error.tt) + 0.05), main = "Variación del Error", xlab = "Número de iteración", ylab = "Estimación del Error")
+points(v.error.tt, col = "red", type = "b")
+legend("topright", legend = c("Cross-folds validation", "Table testing"), col = c("magenta","red"), lty = 1, lwd = 1)
+```
+
+4. ¿Que se puede concluir?
+
+Aqui se denota que tomando 5 iteraciones ya con el table testing con k grupos en k vecinos se denota que genera variaciones en error estimado variables en cada uno de los casos. De 0,00 a 0,08 en la iteracion 5. Contrario el caso de Cross validation con folds. En este caso se muestra un error estable que parece estar entre los 0,05 y 0,07, por lo que parece que el error estimado se debe encontrar en este rango. 
+
+
+Ejercicio 2: [25 puntos] Para esta pregunta tambi´en usaremos los datos tumores.csv.
+
+1. El objetivo de este ejercicio es calibrar el m´etodo de ADA para esta Tabla de Datos. Aqu´ı interesa predecir en la variable tipo. Para esto genere 5 Validaciones Cruzadas con 10 grupos calibrando el modelo de acuerdo con los tres tipos de algoritmos que permite, discrete, real y gentle. Para medir la calidad de m´etodo sume la cantidad de 1’s detectados en los diferentes grupos. Luego grafique las 5 iteraciones para los tres algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor? Para generar los modelos predictivos use las siguientes instrucciones:
+
+
+```{r prywtebftfhjkhehstrhsuaa, echo=TRUE}
+library(traineR)
+numero.filas <- nrow(datos)
+cantidad.validacion.cruzada <- 5
+cantidad.grupos <- 10
+
+deteccion.no.discrete <- c()
+deteccion.no.real <- c()
+deteccion.no.gentle <- c()
+
+for(i in 1:cantidad.validacion.cruzada){
+  grupos  <- createFolds(1:numero.filas, cantidad.grupos)  # Crea los 10 grupos
+  no.discrete <- 0
+  no.real <- 0
+  no.gentle <- 0
+  
+  # Este ciclo es el que hace 'cross-validation' (validación cruzada) con 10
+  # grupos (Folds)
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]  # Por ser una lista requiere de doble paréntesis
+    ttesting <- datos[muestra, ]
+    taprendizaje <- datos[-muestra, ]
+    
+    modelo<-train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="discrete")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.discrete <- no.discrete + MC[2,2] ###para determinar los 1s, MC[1,1] seria 0s
+    
+    modelo<-train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="real")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.real <- no.real + MC[2,2] ###para determinar los 1s
+    
+    modelo<-train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="gentle")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.gentle <- no.gentle + MC[2,2] ###para determinar los 1s
+    
+  }
+  
+  deteccion.no.discrete[i] <- no.discrete
+  deteccion.no.real[i] <- no.real
+  deteccion.no.gentle[i] <- no.gentle
+}
+
+resultados <- data.frame("discrete"     = deteccion.no.discrete,
+                         "real"     = deteccion.no.real,
+                         "gentle" = deteccion.no.gentle) # Preparamos los datos
+
+par(oma=c(0, 0, 0, 3)) # Hace espacio para la leyenda
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "ADA tipo de tumor", 
+        xlab = "Número de iteración",
+        ylab = "Cantidad de 1-tumor",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+2. Repita el ejercicio anterior, pero esta vez en lugar de sumar la cantidad de 1’s, promedie los errores globales cometidos en los diferentes grupos (folds). Luego grafique las 5 iteraciones para los tres algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+
+```{r pfthstrdfvegreghrjgrejgegjhhsuremaa, echo=TRUE}
+# install.packages("caret",dependencies=TRUE)
+suppressMessages(library(caret)) 
+
+n <- dim(datos)[1] # Aquí n=150
+
+v.error.discrete<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="discrete")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.discrete[i] <- errori/10
+}
+
+v.error.real<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="real")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.real[i] <- errori/10
+}
+
+
+v.error.gentle<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="gentle")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.gentle[i] <- errori/10
+}
+
+
+plot(v.error.discrete, col = "magenta", type = "b", ylim = c(min(v.error.discrete,v.error.real,v.error.gentle), max(v.error.discrete, 
+    v.error.real, v.error.gentle) + 0.05), main = "Variación del Error", xlab = "Número de iteración", ylab = "Estimación del Error")
+points(v.error.real, col = "blue", type = "b")
+points(v.error.gentle, col = "red", type = "b")
+legend("topright", legend = c("discrete","real","gentle"), col = c("magenta", 
+    "blue","red"), lty = 1, lwd = 1)
+```
+
+3. ¿Cu´al algoritmo usar´ıa con base en la informaci´on obtenida en los dos ejercicios anteriores?
+
+En este caso resulta complejo tomar una decision ya que a nivel de error y conteo sumatorio de 1s, ambos dan resultados similares en el sentido en las distintas iteraciones tienen similar variabilidad ademas debe considerarse que son numeros grandes por lo que se debe poner en dado caso mas atencion en el error y cada uno detecta en ocasiones mas tumores que los otros. Aun asi, dado lo observado parece resultar mejor gentle en el conteo, pero parece mejor usar real por dos razones detecta una cantidad muy similar de 1s tumores por lo que parece en la mayoria de las iteraciones, y a nivel de error, visualmente parece ser el mas estable linealmente, aunque no por mucho ya que a nivel de error los tres presentan puntos bajos siendo en la 5 real la menor, podria incluso probarse mas iteraciones.
+
+
+Ejercicio 3: [25 puntos] Para esta pregunta usaremos nuevamente los datos tumores.csv.
+
+1. El objetivo de este ejercicio es calibrar el metodo de kknn para esta Tabla de Datos. Aqui interesa predecir en la variable tipo. Para esto genere 5 Validaciones Cruzadas con 10 grupos calibrando el modelo de acuerdo con todos los tipos de algoritmos que permite train.kknn en el par´ametro kernel, estos algoritmos son: rectangular, triangular, epanechnikov, biweight, triweight, cos, inv, gaussian y optimal. Para medir la calidad de m´etodo sume la cantidad de 1’s detectados en los diferentes grupos. Luego grafique las 5 iteraciones para todos algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+```{r prywtebftryuieryfhstrhsuaa, echo=TRUE}
+library(traineR)
+numero.filas <- nrow(datos)
+cantidad.validacion.cruzada <- 5
+cantidad.grupos <- 10
+
+deteccion.no.rectangular <- c()
+deteccion.no.triangular <- c()
+deteccion.no.epanechnikov <- c()
+deteccion.no.biweight <- c()
+deteccion.no.triweight <- c()
+deteccion.no.cos <- c()
+deteccion.no.inv <- c()
+deteccion.no.gaussian <- c()
+deteccion.no.optimal <- c()
+
+for(i in 1:cantidad.validacion.cruzada){
+  grupos  <- createFolds(1:numero.filas, cantidad.grupos)  
+  no.rectangular <- 0
+  no.triangular <- 0
+  no.epanechnikov <- 0
+  no.biweight <- 0
+  no.triweight <- 0
+  no.cos <- 0
+  no.inv <- 0
+  no.gaussian <- 0
+  no.optimal <- 0
+
+  for(k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]]  
+    ttesting <- datos[muestra, ]
+    taprendizaje <- datos[-muestra, ]
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="rectangular")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.rectangular <- no.rectangular + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="triangular")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.triangular <- no.triangular + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="epanechnikov")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.epanechnikov <- no.epanechnikov + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="biweight")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.biweight <- no.biweight + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="triweight")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.triweight <- no.triweight + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="cos")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.cos <- no.cos + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="inv")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.inv <- no.inv + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="gaussian")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.gaussian <- no.gaussian + MC[2,2] 
+    
+    modelo<-train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="optimal")
+    prediccion <- predict(modelo, ttesting,type = "class")
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.optimal <- no.optimal + MC[2,2] 
+    
+  }
+  
+  deteccion.no.rectangular[i] <- no.rectangular
+  deteccion.no.triangular[i] <- no.triangular
+  deteccion.no.epanechnikov[i] <- no.epanechnikov
+  deteccion.no.biweight[i] <- no.biweight
+  deteccion.no.triweight[i] <- no.triweight
+  deteccion.no.cos[i] <- no.cos
+  deteccion.no.inv[i] <- no.inv
+  deteccion.no.gaussian[i] <- no.gaussian
+  deteccion.no.optimal[i] <- no.optimal
+}
+
+resultados <- data.frame("rectangular" = deteccion.no.rectangular,
+                         "triangular" = deteccion.no.triangular,
+                         "epanechnikov" = deteccion.no.epanechnikov,
+                         "biweight" = deteccion.no.biweight,
+                         "triweight" = deteccion.no.triweight,
+                         "cos" = deteccion.no.cos,
+                         "inv" = deteccion.no.inv,
+                         "gaussian" = deteccion.no.gaussian,
+                         "optimal" = deteccion.no.optimal) 
+
+par(oma=c(0, 0, 0, 10)) # Hace espacio para la leyenda
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "kknn tipo de tumor", 
+        xlab = "Número de iteración",
+        ylab = "Cantidad de 1-tumor",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+2. Repita el ejercicio anterior, pero esta vez en lugar de sumar la cantidad de 1’s, promedie los errores globales cometidos en los diferentes grupos (folds). Luego grafique las 5 iteraciones para todos los algoritmos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+```{r pfthstrdfvegreghhhssdfhkjdhfuremaa, echo=TRUE}
+suppressMessages(library(traineR))
+suppressMessages(library(caret)) # Este paquete es usado para generar los grupos al azar
+
+n <- dim(datos)[1] # Aquí n=150
+## Vamos a generar el modelo dejando un grupo para testing y los demás datos para aprendizaje.
+v.error.rectangular<-rep(0,5)
+# Hacemos validación cruzada 10 veces para ver que el error se estabiliza
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="rectangular")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.rectangular[i] <- errori/10
+}
+
+
+v.error.triangular<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  # Este ciclo es el que hace "cross-validation" (validación cruzada) con 5 grupos (Folds)
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="triangular")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.triangular[i] <- errori/10
+}
+
+v.error.epanechnikov<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  # Esta instrucción genera los k=5 grupos (Folds)
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  # Este ciclo es el que hace "cross-validation" (validación cruzada) con 5 grupos (Folds)
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="epanechnikov")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.epanechnikov[i] <- errori/10
+}
+
+
+v.error.biweight<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  # Esta instrucción genera los k=5 grupos (Folds)
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  # Este ciclo es el que hace "cross-validation" (validación cruzada) con 5 grupos (Folds)
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="biweight")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.biweight[i] <- errori/10
+}
+
+
+v.error.triweight<-rep(0,5)
+# Hacemos validación cruzada 10 veces para ver que el error se estabiliza
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="triweight")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.triweight[i] <- errori/10
+}
+
+
+v.error.cos<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="cos")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.cos[i] <- errori/10
+}
+
+
+v.error.inv<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="inv")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.inv[i] <- errori/10
+}
+
+
+
+v.error.gaussian<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="gaussian")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.gaussian[i] <- errori/10
+}
+
+
+v.error.optimal<-rep(0,5)
+for(i in 1:5) {
+  errori <- 0
+  grupos <- createFolds(1:n,10) # grupos$Fold0i es el i-ésimo grupo  
+  for(k in 1:10) {    
+      muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+      ttesting <- datos[muestra,]
+      taprendizaje <- datos[-muestra,]
+      modelo <- train.knn(tipo~.,data=taprendizaje,kmax=10, kernel="optimal")
+      prediccion <- predict(modelo,ttesting,type = "class")
+      MC <- confusion.matrix(ttesting, prediccion)  
+      # Porcentaje de buena clasificación y de error
+      acierto<-sum(diag(MC))/sum(MC)
+      error <- 1 - acierto
+      errori <- errori + error
+  } 
+  v.error.optimal[i] <- errori/10
+}
+
+
+plot(v.error.rectangular, col = "magenta", type = "b", ylim = c(min(v.error.rectangular, v.error.triangular,v.error.epanechnikov,v.error.biweight,v.error.triweight, v.error.cos, v.error.inv, v.error.gaussian, v.error.optimal), max(v.error.rectangular, v.error.triangular,v.error.epanechnikov,v.error.biweight,v.error.triweight, v.error.cos, v.error.inv, v.error.gaussian, v.error.optimal) + 0.05), main = "Variación del Error", xlab = "Número de iteración", ylab = "Estimación del Error")
+points(v.error.triangular, col = "blue", type = "b")
+points(v.error.epanechnikov, col = "red", type = "b")
+points(v.error.biweight, col = "green", type = "b")
+points(v.error.triweight, col = "aquamarine", type = "b")
+points(v.error.cos, col = "deeppink1", type = "b")
+points(v.error.inv, col = "darkslateblue", type = "b")
+points(v.error.gaussian, col = "chocolate", type = "b")
+points(v.error.optimal, col = "gold", type = "b")
+legend("topright", legend = c("rectangular","triangular","epanechnikov","biweight", "triweight", "cos", "inv", "gaussian", "optimal"), col = c("magenta", "blue","red","green", "aquamarine", "deeppink1", "darkslateblue", "chocolate", "gold"), lty = 1, lwd = 1)
+```
+
+
+
+3. ¿Cu´al algoritmo usar´ıa con base en la informaci´on obtenida en los dos ejercicios anteriores?
+
+Con base en la informacion se denota que a nivel de 1s contados es gaussian claramente, pero en error resulta mas complejo definirlo. En error se denota que en su mayoria el error mas bajo se encuentra en biweight, por lo que este parece ser el mejor de los kernels y el que se usara
+
+
+Ejercicio 4: [25 puntos] Esta pregunta tambi´en utilizan nuevamente los datos tumores.csv.
+
+1. El objetivo de este ejercicio es comparar todos los m´etodos predictivos vistos en el curso con esta tabla de datos. Aqu´ı interesa predecir en la variable tipo, para esto genere 5 Validaciones Cruzadas con 10 grupos para los m´etodos SVM, KNN, ´Arboles, Bosques, Potenciaci´on, eXtreme Gradient Boosting, LDA, Bayes, Regresi´on Log´ıstica, ConsensoPropio y Redes Neuronales, para KNN y Potenciaci´on use los par´ametros obtenidos en las calibraciones realizadas en los ejercicios anteriores. Luego grafique las 5 iteraciones para todos los m´etodos en el mismo gr´afico. ¿Se puede determinar con claridad cu´al m´etodos es el mejor?
+
+
+```{r pueyfifijfegfewufhjdddddheifhreec, echo=TRUE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  precision.positiva <- MC[2, 2]/(MC[2, 2] + MC[2, 1])
+  precision.negativa <- MC[1, 1]/(MC[1, 1] + MC[1, 2])
+  falsos.positivos <- 1 - precision.negativa
+  falsos.negativos <- 1 - precision.positiva
+  asertividad.positiva <- MC[2, 2]/(MC[1, 2] + MC[2, 2])
+  asertividad.negativa <- MC[1, 1]/(MC[1, 1] + MC[2, 1])
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria, precision.positiva = precision.positiva, precision.negativa=precision.negativa, 
+              falsos.positivos=falsos.positivos, falsos.negativos=falsos.negativos, asertividad.positiva=asertividad.positiva,
+              asertividad.negativa=asertividad.negativa)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", "Precisión por categoría", "Precision Positiva", "Precision Negativa",
+                  "Falsos Positivos", "Falsos Negativos", "Asertividad Positiva", "Asertividad Negativa")
+  return(res)
+}
+
+
+library(e1071)
+library(kknn)
+library(MASS)
+library(class)
+library(rpart)
+library(randomForest)
+library(ada)
+library(nnet)
+library(caret)
+library(traineR)
+
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data1<-read.csv("tumores.csv",dec='.',header=T)
+data1$tipo <- factor(data1$tipo,ordered = TRUE)
+datos <- data1[,-1]
+```
+
+
+```{r pueyfifijfegferjgjkeghrkejwufhjheifhreec, echo=TRUE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  precision.positiva <- MC[2, 2]/(MC[2, 2] + MC[2, 1])
+  precision.negativa <- MC[1, 1]/(MC[1, 1] + MC[1, 2])
+  falsos.positivos <- 1 - precision.negativa
+  falsos.negativos <- 1 - precision.positiva
+  asertividad.positiva <- MC[2, 2]/(MC[1, 2] + MC[2, 2])
+  asertividad.negativa <- MC[1, 1]/(MC[1, 1] + MC[2, 1])
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria, precision.positiva = precision.positiva, precision.negativa=precision.negativa, 
+              falsos.positivos=falsos.positivos, falsos.negativos=falsos.negativos, asertividad.positiva=asertividad.positiva,
+              asertividad.negativa=asertividad.negativa)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", "Precisión por categoría", "Precision Positiva", "Precision Negativa",
+                  "Falsos Positivos", "Falsos Negativos", "Asertividad Positiva", "Asertividad Negativa")
+  return(res)
+}
+
+
+
+
+datos$tipo <- factor(datos$tipo,ordered = TRUE)
+
+
+numero.filas <- nrow(datos)
+cantidad.validacion.cruzada <- 5
+cantidad.grupos <- 10
+
+deteccion.no.svm <- c()
+deteccion.no.knn <- c()
+deteccion.no.bayes <- c()
+deteccion.no.arbol <- c()
+deteccion.no.bosque <- c()
+deteccion.no.potenciacion <- c()
+deteccion.no.red <- c()
+deteccion.no.xgboost <- c()
+deteccion.no.red.neu <- c()
+deteccion.no.glm <- c()
+deteccion.no.ada <- c()
+deteccion.no.consenso <- c()
+
+
+
+deteccion.error.svm <- c()
+deteccion.error.knn <- c()
+deteccion.error.bayes <- c()
+deteccion.error.arbol <- c()
+deteccion.error.bosque <- c()
+deteccion.error.potenciacion <- c()
+deteccion.error.red <- c()
+deteccion.error.xgboost <- c()
+deteccion.error.red.neu <- c()
+deteccion.error.glm <- c()
+deteccion.erro.ada <- c()
+deteccion.error.consenso <- c()
+
+# Validación cruzada 5 veces
+for (i in 1:cantidad.validacion.cruzada) {
+  grupos <- createFolds(1:numero.filas, cantidad.grupos) # Crea los 10 grupos
+  no.svm <- 0
+  no.knn <- 0
+  no.bayes <- 0
+  no.arbol <- 0
+  no.bosque <- 0
+  no.potenciacion <- 0
+  no.red <- 0
+  no.xg  <- 0
+  no.red.neu <- 0
+  no.glm <- 0
+  no.ada <- 0
+  no.consenso <- 0
+  
+  
+  error.svm <- 0
+  error.knn <- 0
+  error.bayes <- 0
+  error.arbol <- 0
+  error.bosque <- 0
+  error.potenciacion <- 0
+  error.red <- 0
+  error.xg  <- 0
+  error.red.neu <- 0
+  error.glm <- 0
+  error.ada <- 0
+  error.consenso <- 0
+  # Este ciclo es el que hace validación cruzada con 10 grupos
+  for (k in 1:cantidad.grupos) {
+    muestra <- grupos[[k]] # Por ser una lista requiere de doble paréntesis
+    ttesting <- datos[muestra, ]
+    ttraining <- datos[-muestra, ]
+    
+    consenso <- function(ttraining){
+      largo <- dim(ttraining)[1]
+      m1 <- sample(1:largo, replace=TRUE)
+      ap1 <- ttraining[m1,] 
+      m2 <- sample(1:largo, replace=TRUE)
+      ap2 <- ttraining[m2,]
+      m3 <- sample(1:largo, replace=TRUE)
+      ap3 <- ttraining[m3,]
+      m4 <- sample(1:largo, replace=TRUE)
+      ap4 <- ttraining[m4,]
+      m5 <- sample(1:largo, replace=TRUE)
+      ap5 <- ttraining[m5,]
+      m6 <- sample(1:largo, replace=TRUE)
+      ap6 <- ttraining[m6,]
+    
+      m9 <- sample(1:largo, replace=TRUE)
+      ap9 <- ttraining[m9,]
+      
+    
+      
+      mod.knn<-train.kknn(tipo~., data = ap1 , kmax=10)  
+      mod.redes<-nnet(tipo~ ., data = ap2, size = 4, rang= 0.1, decay = 5e-04,maxit = 500, trace = FALSE, MaxNWts=1500)        
+      mod.arboles<-rpart(tipo ~ ., data = ap3)            
+      mod.svm.1<-svm(tipo~ ., data = ap4, kernel="radial")      
+      mod.svm.2<-svm(tipo~ ., data = ap5, kernel="polynomial")   
+      mod.bayes <- naiveBayes(tipo~.,data=ap6)                   
+    
+      #mod.qda <- qda(Survived~., data=ap8)                         
+      mod.ada<-ada(tipo~.,data=ap9,iter=10,nu=0.9)             
+      
+      mod.consenso <- list(kvecinos=mod.knn,red.neuronal=mod.redes,arbol.decision=mod.arboles,SVM1=mod.svm.1,SVM2=mod.svm.2,bayes=mod.bayes,boosting=mod.ada)
+      return(list(kvecinos=mod.knn,red.neuronal=mod.redes,arbol.decision=mod.arboles,SVM1=mod.svm.1,SVM2=mod.svm.2,bayes=mod.bayes,boosting=mod.ada))
+    }
+    
+    
+    library(modeest)
+    predice<-function(ttesting,mod.consenso){
+      p.knn<-as.numeric(predict(mod.consenso$kvecinos, ttesting))
+      p.red<-as.numeric(predict(mod.consenso$red.neuronal, ttesting, type = "class"))
+      p.arbol<-as.numeric(predict(mod.consenso$arbol.decision, ttesting, type = "class"))
+      p.svm1<-as.numeric(predict(mod.consenso$SVM1, ttesting, type = "class"))
+      p.bayes <-as.numeric(predict(mod.consenso$bayes,ttesting))
+    
+      auxiliar <- p.knn-1
+      
+      votos<-data.frame(p.knn,p.red,p.arbol,p.svm1,p.bayes)
+      votos$p.knn<-votos$p.knn-1
+      votos$p.arbol<-votos$p.arbol-1
+      votos$p.svm1<-votos$p.svm1-1
+      votos$p.bayes<-votos$p.bayes-1
+    
+      
+      modas <-  rep(0,dim(votos)[1])
+      for (i in 1:dim(votos)[1]){
+        modas[i]<-mfv(as.numeric(votos[i,]))
+      }
+      confusion<-table(ttesting$tipo,modas) 
+      return(confusion)
+      
+    }
+    
+    mod.consenso <- consenso(ttraining)
+    pred.consenso<-predice(ttesting,mod.consenso)
+    MC <- indices.general(pred.consenso)
+    no.consenso <- no.consenso + MC$`Matriz de Confusión`["1","1"]
+    error.consenso <- error.consenso +(1-(sum(diag(MC$`Matriz de Confusión`)))/sum(MC$`Matriz de Confusión`))*100
+    
+    
+    
+    
+    modelo <- train.svm(tipo ~ ., data = ttraining, kernel = "radial", probability = FALSE)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.svm <- no.svm + MC[2,2] # Detección de los No Pagadores
+    error.svm<-error.svm+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.knn(tipo ~ ., data = ttraining, kmax = 37, kernel="biweight")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.knn <- no.knn + MC[2,2] # Detección de los No Pagadores
+    error.knn <- error.knn+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.bayes(tipo ~ ., data = ttraining)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.bayes <- no.bayes + MC[2,2] # Detección de los No Pagadores
+    error.bayes <- error.bayes+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo = train.rpart(tipo ~ ., data = ttraining)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.arbol <- no.arbol + MC[2,2] # Detección de los No Pagadores
+    error.arbol <- error.arbol+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.randomForest(tipo ~ ., data = ttraining)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.bosque <- no.bosque + MC[2,2] # Detección de los No Pagadores
+    error.bosque <- error.bosque+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.ada(tipo ~ ., data = ttraining, iter = 20, nu = 1, type = "discrete")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.potenciacion <- no.potenciacion + MC[2,2] # Detección de los No Pagadores
+    error.potenciacion <- error.potenciacion+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.nnet(tipo ~ ., data = ttraining, size = 100, MaxNWts = 5000, rang = 0.01, 
+               decay = 5e-4, maxit = 45, trace = TRUE)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.red <- no.red + MC[2,2] # Detección de los No Pagadores
+    error.red <- error.red+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.xgboost(tipo ~ ., data = ttraining, nrounds = 79,
+                        print_every_n = 10, maximize = F , eval_metric = "error")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.xg <- no.xg + MC[2,2] # Detección de los No Pagadores
+    error.xg <- error.xg+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.neuralnet(tipo ~., data = ttraining, hidden = c(8,6,4), 
+                          linear.output = FALSE, threshold = 0.5, stepmax = 1e+06)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.red.neu <- no.red.neu + MC[2,2] # Detección de los No Pagadores
+    error.red.neu <- error.red.neu+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo <- train.glm(tipo ~ ., data = ttraining)
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.glm <- no.glm + MC[2,2] # Detección de los No Pagadores
+    error.glm <- error.glm+(1-(sum(diag(MC)))/sum(MC))*100
+    
+    modelo<-train.ada(tipo~.,data=ttraining,iter=80,nu=1,type="gentle")
+    prediccion <- predict(modelo, ttesting)
+    MC <- confusion.matrix(ttesting, prediccion)
+    no.ada <- no.ada + MC[2,2] ###para determinar los 1s
+    error.ada <- error.ada+(1-(sum(diag(MC)))/sum(MC))*100
+  }
+  deteccion.no.svm[i] <- no.svm
+  deteccion.no.knn[i] <- no.knn
+  deteccion.no.bayes[i] <- no.bayes
+  deteccion.no.arbol[i] <- no.arbol
+  deteccion.no.bosque[i] <- no.bosque
+  deteccion.no.potenciacion[i] <- no.potenciacion
+  deteccion.no.red[i] <- no.red
+  deteccion.no.xgboost[i] <- no.xg
+  deteccion.no.red.neu[i] <- no.red.neu
+  deteccion.no.glm[i] <- no.glm
+  deteccion.no.ada[i] <- no.ada
+  deteccion.no.consenso[i] <- no.consenso
+  
+  deteccion.error.svm[i] <- error.svm/cantidad.grupos
+  deteccion.error.knn[i] <- error.knn/cantidad.grupos
+  deteccion.error.bayes[i] <- error.bayes/cantidad.grupos
+  deteccion.error.arbol[i] <- error.arbol/cantidad.grupos
+  deteccion.error.bosque[i] <- error.bosque/cantidad.grupos
+  deteccion.error.potenciacion[i] <- error.potenciacion/cantidad.grupos
+  deteccion.error.red[i] <- error.red/cantidad.grupos
+  deteccion.error.xgboost[i] <- error.xg/cantidad.grupos
+  deteccion.error.red.neu[i] <- error.red.neu/cantidad.grupos
+  deteccion.error.glm[i] <- error.glm/cantidad.grupos
+  deteccion.error.ada[i] <- error.ada/cantidad.grupos
+  deteccion.error.consenso[i] <- error.consenso/cantidad.grupos
+}
+
+resultados <- data.frame("svm" = deteccion.no.svm,
+                         "k_vecinos" = deteccion.no.knn,
+                         "bayes" = deteccion.no.bayes,
+                         "arboles" = deteccion.no.arbol,
+                         "bosques" = deteccion.no.bosque,
+                         "potenciacion" = deteccion.no.potenciacion,
+                         "redes_nnet" = deteccion.no.red,
+                         "xgboost" = deteccion.no.xgboost,
+                         "redes_neuralnet" = no.red.neu, 
+                         "regresion_logistica" = deteccion.no.glm,
+                         "ada" = no.red.ada, 
+                         "consenso" = deteccion.no.consenso)
+
+resultados1 <- data.frame("svm" = deteccion.error.svm,
+                         "k_vecinos" = deteccion.error.knn,
+                         "bayes" = deteccion.error.bayes,
+                         "arboles" = deteccion.error.arbol,
+                         "bosques" = deteccion.error.bosque,
+                         "potenciacion" = deteccion.error.potenciacion,
+                         "redes_nnet" = deteccion.error.red,
+                         "xgboost" = deteccion.error.xgboost,
+                         "redes_neuralnet" = deteccion.error.red.neu, 
+                         "regresion_logistica" = deteccion.error.glm,
+                         "ada" = deteccion.error.ada, 
+                         "consenso" = deteccion.error.consenso)
+
+```
+
+
+```{r pueyfififjghgjggegrefegfewufhjheifhreec, echo=TRUE}
+
+par(oma=c(0, 0, 0, 8)) # Hace espacio para la leyenda
+
+matplot(resultados, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados),
+        main = "Detección del 1-tumor", 
+        xlab = "Número de iteración",
+        ylab = "Cantidad de 1-tumor detectados",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+
+
+2. Repita el ejercicio anterior, pero en lugar de sumar la cantidad de 1’s, promedie los errores globales cometidos en los diferentes grupos (folds). Luego grafique las 5 iteraciones para todos los m´etodos vistos en el curso en el mismo gr´afico. ¿Se puede determinar con claridad cu´al algoritmo es el mejor?
+
+```{r pueyfifijfegfewufhjheifhreec, echo=TRUE}
+par(oma=c(0, 0, 0, 8)) # Hace espacio para la leyenda
+matplot(resultados1, type="b", lty = 1, lwd = 1, pch = 1:ncol(resultados1),
+        main = "Comparación del Error Global", 
+        xlab = "Número de iteración",
+        ylab = "Porcentaje de Error Global",
+        col = rainbow(ncol(resultados)))
+legend(par('usr')[2], par('usr')[4], legend = colnames(resultados),bty='n', xpd=NA, cex = 0.8,
+       pch=1:ncol(resultados), col = rainbow(ncol(resultados))) # La leyenda
+```
+
+3. ¿Cu´al m´etodo usar´ıa con base en la informaci´on obtenida en los dos ejercicios anteriores?
+
+Resulta importante notar que tanto bosques, como arboles y potenciacion mantiene porcentajes de error bajo ademas es notorio el hecho de que los tres detectan junto a otros modelos como redes neuralnet, k vecinos y svm. Pero analizando especialmente el error si tuviera que seleccionarse solo uno se recomienda bosques que visualmente muestra un error apens un poco mas abajo.
+
+
+
+
+

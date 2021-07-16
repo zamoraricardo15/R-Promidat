@@ -1,0 +1,729 @@
+---
+title: "Tarea 11_Ricardo Zamora Mennigke_Mineria de Datos 1"
+author: "Ricardo Zamora Mennigke"
+date: "6/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+#Tarea 12
+##ROC
+#Mineria de Datos I
+#Ricardo Zamora Mennigke
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(scales)
+library(xgboost)
+library(randomForest)
+library(ROCR)
+library(traineR)
+```
+
+Ejercicio 1: [40 puntos] Esta pregunta tambi´en utilizan nuevamente los datos tumores.csv. El objetivo de este ejercicio es comparar todos los m´etodos predictivos vistos en el curso con esta tabla de datos. Aqu´ı interesa predecir en la variable tipo, para los m´etodos SVM, KNN, ´Arboles, Bosques, Potenciaci´on, eXtreme Gradient Boosting, LDA, Bayes, Regresi´on Log´ıstica, ConsensoPropio y Redes Neuronales, para KNN y Potenciaci´on se desea determinar cu´al m´etodo produce mejores resultados usando la curva ROC. Para esto realice lo siguiente:
+
+1. Grafique la curva ROC para todos modelos predictivos generados en la tarea anterior. Use el par´ametro type = ‘‘prob’’ en las funciones predict del paquete traineR para
+retornar la probabilidad en lugar de la clase. ¿Cu´al m´etodo parece ser mejor?
+
+```{r cache=TRUE}
+setwd("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Clase2")
+datos<-read.csv("tumores.csv",dec='.',header=T)
+head(datos)
+```
+
+```{r cache=TRUE}
+library(caret)
+datos$tipo <- factor(datos$tipo,ordered = TRUE)
+datos$imagen <- as.integer(datos$imagen,ordered = TRUE)
+summary(datos)
+```
+
+```{r cache=TRUE}
+str(datos)
+```
+
+```{r cache=TRUE}
+dim(datos)
+```
+
+```{r cache=TRUE}
+barplot(prop.table(table(datos$tipo)),col=c("orange","blue","green"),main="Distribución de la variable por predecir")
+```
+Ejercicio desbalanceado
+
+```{r cache=TRUE}
+plotROC <- function(prediccion, real, adicionar = FALSE, color = "red") {
+  pred <- ROCR::prediction(prediccion, real)    
+  perf <- ROCR::performance(pred, "tpr", "fpr")
+  plot(perf, col = color, add = adicionar, main = "Curva ROC")
+  segments(0, 0, 1, 1, col='black')
+  grid()  
+}
+
+##Probando
+Score1 <- c(0.9, 0.9, 0.8, 0.5, 0.5, 0.4, 0.3, 0.1)
+Clase1 <- c(1, 1, 1, 0, 1, 1, 0, 0)
+plotROC(Score1, Clase1)
+
+Score2 <- c(0.8, 0.8, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1)
+Clase2 <- c(1, 1, 1, 0, 1, 1, 0, 0)
+plotROC(Score2, Clase2, adicionar = TRUE, color = "blue")
+```
+
+```{r cache=TRUE}
+###Se usa un 75% training contra 25% testing al ser un set de datos tan desbalanceado
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.15))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.svm(tipo ~ ., data = taprendizaje)
+prediccion <- predict(modelo, ttesting, type = "prob")
+head(prediccion$prediction)
+```
+
+```{r cache=TRUE}
+Score <- prediccion$prediction[,2]
+Clase <- ttesting$tipo
+plotROC(Score,Clase)
+```
+
+```{r cache=TRUE}
+areaROC <- function(prediccion, real) {
+  pred <- ROCR::prediction(prediccion, real)
+  auc <- ROCR::performance(pred, "auc")
+  return(attributes(auc)$y.values[[1]])
+}
+
+
+areaROC(Score,Clase) ##SVM
+```
+
+```{r cache=TRUE}
+modelo2 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "triweight")
+prediccion2 <- predict(modelo2, ttesting, type = "prob")
+head(prediccion2$prediction)
+
+```
+
+```{r cache=TRUE}
+Score2 <- prediccion2$prediction[,2]
+Clase2 <- ttesting$tipo
+
+plotROC(Score, Clase)
+plotROC(Score2, Clase2, adicionar=TRUE, color = "blue")
+```
+
+```{r cache=TRUE}
+areaROC(Score2, Clase2)
+
+```
+
+```{r cache=TRUE}
+modelo4 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "rectangular")
+prediccion4 <- predict(modelo4, ttesting, type = "prob")
+head(prediccion4$prediction)
+
+```
+
+```{r cache=TRUE}
+Score4 <- prediccion4$prediction[,2]
+Clase4 <- ttesting$tipo
+
+plotROC(Score, Clase)
+plotROC(Score2, Clase2, adicionar=TRUE, color = "blue")
+plotROC(Score4, Clase4, adicionar = TRUE, color = "green")
+
+```
+
+```{r cache=TRUE}
+areaROC(Score4, Clase4)
+
+```
+
+```{r cache=TRUE}
+modelo5 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "triangular")
+prediccion5 <- predict(modelo5, ttesting, type = "prob")
+head(prediccion5$prediction)
+
+```
+
+```{r cache=TRUE}
+Score5 <- prediccion5$prediction[,2]
+Clase5 <- ttesting$tipo
+
+plotROC(Score, Clase)
+plotROC(Score2, Clase2, adicionar=TRUE, color = "blue")
+plotROC(Score4, Clase4, adicionar = TRUE, color = "green")
+plotROC(Score5, Clase5, adicionar = TRUE, color = "blueviolet")
+
+```
+
+```{r cache=TRUE}
+areaROC(Score5, Clase5)
+
+```
+
+```{r cache=TRUE}
+modelo6 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "epanechnikov")
+prediccion6 <- predict(modelo6, ttesting, type = "prob")
+head(prediccion6$prediction)
+
+modelo7 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "biweight")
+prediccion7 <- predict(modelo7, ttesting, type = "prob")
+head(prediccion7$prediction)
+
+modelo8 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "cos")
+prediccion8 <- predict(modelo8, ttesting, type = "prob")
+head(prediccion8$prediction)
+
+modelo9 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "inv")
+prediccion9 <- predict(modelo9, ttesting, type = "prob")
+head(prediccion9$prediction)
+
+modelo10 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "gaussian")
+prediccion10 <- predict(modelo10, ttesting, type = "prob")
+head(prediccion10$prediction)
+
+modelo11 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "optimal")
+prediccion11 <- predict(modelo11, ttesting, type = "prob")
+head(prediccion11$prediction)
+
+```
+
+```{r cache=TRUE}
+Score6 <- prediccion6$prediction[,2]
+Clase6 <- ttesting$tipo
+
+Score7 <- prediccion7$prediction[,2]
+Clase7 <- ttesting$tipo
+
+Score8 <- prediccion8$prediction[,2]
+Clase8 <- ttesting$tipo
+
+Score9 <- prediccion9$prediction[,2]
+Clase9 <- ttesting$tipo
+
+Score10 <- prediccion10$prediction[,2]
+Clase10 <- ttesting$tipo
+
+Score11 <- prediccion11$prediction[,2]
+Clase11 <- ttesting$tipo
+
+plotROC(Score, Clase)
+plotROC(Score2, Clase2, adicionar=TRUE, color = "blue")
+plotROC(Score4, Clase4, adicionar = TRUE, color = "green")
+plotROC(Score5, Clase5, adicionar = TRUE, color = "blueviolet")
+plotROC(Score6, Clase6, adicionar = TRUE, color = "darkgoldenrod2")
+plotROC(Score7, Clase7, adicionar = TRUE, color = "brown1")
+plotROC(Score8, Clase8, adicionar = TRUE, color = "darkgreen")
+plotROC(Score9, Clase9, adicionar = TRUE, color = "deeppink")
+plotROC(Score10, Clase10, adicionar = TRUE, color = "gold")
+plotROC(Score11, Clase11, adicionar = TRUE, color = "gray0")
+```
+
+```{r cache=TRUE}
+areaROC(Score5, Clase5)
+areaROC(Score6, Clase6)
+areaROC(Score7, Clase7)
+areaROC(Score8, Clase8)
+areaROC(Score9, Clase9)
+areaROC(Score10, Clase10)
+areaROC(Score11, Clase11)
+```
+
+Se concluye que aunque el metodo de knn parece tener un mal ROC el mejor de los kernels parece ser por poca diferencia, tanto en el grafico como en el area bajo la curva estimada, biweight por lo que en la comparacion final se emplea.
+
+```{r cache=TRUE}
+modelo6 <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="discrete")
+prediccion6 <- predict(modelo6, ttesting, type = "prob")
+head(prediccion6$prediction)
+
+modelo7 <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="real")
+prediccion7 <- predict(modelo7, ttesting, type = "prob")
+head(prediccion7$prediction)
+
+modelo8 <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="gentle")
+prediccion8 <- predict(modelo8, ttesting, type = "prob")
+head(prediccion8$prediction)
+
+
+```
+
+```{r cache=TRUE}
+Score6 <- prediccion6$prediction[,2]
+Clase6 <- ttesting$tipo
+
+Score7 <- prediccion7$prediction[,2]
+Clase7 <- ttesting$tipo
+
+Score8 <- prediccion8$prediction[,2]
+Clase8 <- ttesting$tipo
+
+
+plotROC(Score6, Clase6)
+plotROC(Score7, Clase7, adicionar = TRUE, color = "brown1")
+plotROC(Score8, Clase8, adicionar = TRUE, color = "darkgreen")
+
+```
+
+```{r cache=TRUE}
+areaROC(Score6, Clase6)
+areaROC(Score7, Clase7)
+areaROC(Score8, Clase8)
+
+```
+
+Se concluye que el metodo de ada parece tener un muy buen ROC el mejor de los kernels parece ser por poca diferencia, tanto en el grafico como en el area bajo la curva estimada, discrete por lo que en la comparacion final se emplea.
+
+
+```{r cache=TRUE}
+modelo <- train.svm(tipo ~ ., data = taprendizaje)
+prediccion <- predict(modelo, ttesting, type = "prob")
+head(prediccion$prediction)
+```
+
+```{r cache=TRUE}
+Score <- prediccion$prediction[,2]
+Clase <- ttesting$tipo
+plotROC(Score,Clase)
+```
+
+```{r cache=TRUE}
+areaROC(Score,Clase) ##SVM
+```
+
+
+```{r cache=TRUE}
+library(e1071)
+library(kknn)
+library(MASS)
+library(class)
+library(rpart)
+library(randomForest)
+library(ada)
+library(nnet)
+library(caret)
+library(traineR)
+modelo2 <- train.ada(tipo~.,data=taprendizaje,iter=80,nu=1,type="discrete")
+prediccion2 <- predict(modelo2, ttesting, type = "prob")
+head(prediccion2$prediction)
+
+consenso <- function(taprendizaje){
+      largo <- dim(taprendizaje)[1]
+      m1 <- sample(1:largo, replace=TRUE)
+      ap1 <- taprendizaje[m1,] 
+      m2 <- sample(1:largo, replace=TRUE)
+      ap2 <- taprendizaje[m2,]
+      m3 <- sample(1:largo, replace=TRUE)
+      ap3 <- taprendizaje[m3,]
+      m4 <- sample(1:largo, replace=TRUE)
+      ap4 <- taprendizaje[m4,]
+      m5 <- sample(1:largo, replace=TRUE)
+      ap5 <- taprendizaje[m5,]
+      m6 <- sample(1:largo, replace=TRUE)
+      ap6 <- taprendizaje[m6,]
+    
+      m9 <- sample(1:largo, replace=TRUE)
+      ap9 <- taprendizaje[m9,]
+      
+    
+      
+      mod.knn<-train.knn(tipo~., data = ap1 , kmax=10)  
+      mod.redes<-nnet(tipo~ ., data = ap2, size = 4, rang= 0.1, decay = 5e-04,maxit = 500, trace = FALSE, MaxNWts=1500)        
+      mod.arboles<-rpart(tipo ~ ., data = ap3)            
+      mod.svm.1<-svm(tipo~ ., data = ap4, kernel="radial")      
+      mod.svm.2<-svm(tipo~ ., data = ap5, kernel="polynomial")   
+      mod.bayes <- naiveBayes(tipo~.,data=ap6)                   
+      #mod.qda <- qda(Survived~., data=ap8)                         
+      mod.ada<-ada(tipo~.,data=ap9,iter=10,nu=0.9)             
+      
+      mod.consenso <- list(kvecinos=mod.knn,red.neuronal=mod.redes,arbol.decision=mod.arboles,SVM1=mod.svm.1,bayes=mod.bayes)
+      return(list(kvecinos=mod.knn,red.neuronal=mod.redes,arbol.decision=mod.arboles,SVM1=mod.svm.1, bayes=mod.bayes))
+}
+    
+    
+library(modeest)
+predice<-function(ttesting,mod.consenso){
+      p.knn<-as.numeric(predict(mod.consenso$kvecinos, ttesting))
+      p.red<-as.numeric(predict(mod.consenso$red.neuronal, ttesting, type = "class"))
+      p.arbol<-as.numeric(predict(mod.consenso$arbol.decision, ttesting, type = "class"))
+      p.svm1<-as.numeric(predict(mod.consenso$SVM1, ttesting, type = "class"))
+      p.bayes <-as.numeric(predict(mod.consenso$bayes,ttesting))
+    
+      auxiliar <- p.knn-1
+      
+      votos<-data.frame(p.knn,p.red,p.arbol,p.svm1,p.bayes)
+      votos$p.knn<-votos$p.knn-1
+      votos$p.arbol<-votos$p.arbol-1
+      votos$p.svm1<-votos$p.svm1-1
+      votos$p.bayes<-votos$p.bayes-1
+    
+      
+      modas <-  rep(0,dim(votos)[1])
+      for (i in 1:dim(votos)[1]){
+        modas[i]<-mfv(as.numeric(votos[i,]))
+      }
+      confusion<-table(ttesting$tipo,modas) 
+      return(confusion)
+      
+}
+
+# mod.consenso <- consenso(taprendizaje)
+# pred.consenso<-predice(ttesting, mod.consenso)
+# head(pred.consenso$prediction)
+    # MC <- indices.general(pred.consenso)
+    # no.consenso <- no.consenso + MC$`Matriz de Confusión`["1","1"]
+    # error.consenso <- error.consenso +(1-(sum(diag(MC$`Matriz de Confusión`)))/sum(MC$`Matriz de Confusión`))*100
+
+modelo4 <- lda(tipo~., data=taprendizaje)
+prediccion4 <- predict(modelo4, ttesting)
+head(prediccion4$prediction)
+
+modelo3 <- train.bayes(tipo ~ ., data = taprendizaje)
+prediccion3 <- predict(modelo3, ttesting, type = "prob")
+head(prediccion3$prediction)
+
+modelo7 <- train.knn(tipo ~ ., data = taprendizaje,  kmax = 100, kernel = "biweight")
+prediccion7 <- predict(modelo7, ttesting, type = "prob")
+head(prediccion7$prediction)
+
+modelo6 <- train.rpart(tipo ~ ., data = taprendizaje)
+prediccion6 <- predict(modelo6, ttesting, type = "prob")
+head(prediccion6$prediction)
+
+modelo8 <- train.randomForest(tipo ~ ., data = taprendizaje)
+prediccion8 <- predict(modelo8, ttesting, type = "prob")
+head(prediccion8$prediction)
+
+modelo9 <- train.nnet(tipo ~ ., data = taprendizaje, size = 100, MaxNWts = 5000, rang = 0.01, decay = 5e-4, maxit = 45, trace = TRUE)
+prediccion9 <- predict(modelo9, ttesting, type = "prob")
+head(prediccion9$prediction)
+
+modelo10 <- train.xgboost(tipo ~ ., data = taprendizaje, nrounds = 79, print_every_n = 10, maximize = F , eval_metric = "error")
+prediccion10 <- predict(modelo10, ttesting, type = "prob")
+head(prediccion10$prediction)
+
+modelo11 <- train.neuralnet(tipo ~., data = taprendizaje, hidden = c(8,6,4), linear.output = FALSE, threshold = 0.5, stepmax = 1e+06)
+prediccion11 <- predict(modelo11, ttesting, type = "prob")
+head(prediccion11$prediction)
+
+modelo12 <- train.glm(tipo ~ ., data = taprendizaje)
+prediccion12 <- predict(modelo12, ttesting, type = "prob")
+head(prediccion12$prediction)
+
+
+```
+
+```{r cache=TRUE}
+Score <- prediccion$prediction[,2]
+Clase <- ttesting$tipo
+
+Score2 <- prediccion2$prediction[,2]
+Clase2 <- ttesting$tipo
+
+Score3 <- prediccion3$prediction[,2]
+Clase3 <- ttesting$tipo
+
+Score4 <- prediccion4$prediction[,2]
+Clase4 <- ttesting$tipo
+
+Score6 <- prediccion6$prediction[,2]
+Clase6 <- ttesting$tipo
+
+Score7 <- prediccion7$prediction[,2]
+Clase7 <- ttesting$tipo
+
+Score8 <- prediccion8$prediction[,2]
+Clase8 <- ttesting$tipo
+
+Score9 <- prediccion9$prediction[,2]
+Clase9 <- ttesting$tipo
+
+Score10 <- prediccion10$prediction[,2]
+Clase10 <- ttesting$tipo
+
+Score11 <- prediccion11$prediction[,2]
+Clase11 <- ttesting$tipo
+
+Score12 <- prediccion12$prediction[,2]
+Clase12 <- ttesting$tipo
+
+plotROC(Score, Clase)
+plotROC(Score2, Clase2, adicionar=TRUE, color = "blue")
+#plotROC(Score4, Clase4, adicionar = TRUE, color = "green")
+plotROC(Score5, Clase5, adicionar = TRUE, color = "blueviolet")
+plotROC(Score6, Clase6, adicionar = TRUE, color = "darkgoldenrod2")
+plotROC(Score7, Clase7, adicionar = TRUE, color = "brown1")
+plotROC(Score8, Clase8, adicionar = TRUE, color = "darkgreen")
+plotROC(Score9, Clase9, adicionar = TRUE, color = "deeppink")
+plotROC(Score10, Clase10, adicionar = TRUE, color = "gold")
+plotROC(Score11, Clase11, adicionar = TRUE, color = "gray0")
+plotROC(Score12, Clase12, adicionar = TRUE, color = "green")
+```
+De forma visual se denota que hay tres modelos que tienen una curva ROC que tiene muy buen nivel de estimacion. Los cuatro visibles son: XGBoosting, ada-discrete, arboles de decision y bosques aleatorios.
+
+2. Calcule en ´area bajo curva ROC para todos los modelos predictivos generados en la tarea anterior. ¿Cu´al m´etodo es el mejor seg´un este criterio?
+```{r cache=TRUE}
+areaROC(Score,Clase) #SVM
+areaROC(Score2, Clase2) #ADA
+areaROC(Score3, Clase3)
+#areaROC(Score4, Clase4) 
+areaROC(Score6, Clase6) ##rpart
+areaROC(Score7, Clase7)
+areaROC(Score8, Clase8)##aleatorios
+areaROC(Score9, Clase9)
+areaROC(Score10, Clase10) #XGBoosting
+areaROC(Score11, Clase11)
+areaROC(Score12, Clase12)
+```
+Se denorta que lo mejor desempeno tiene para este calculo es XGBoosting seguido por los tres mencionados anteriormente, por un margen bastante pequeno ya que los cuatro superan un 0,99 de poder predictivo en ada-discrete, arboles de decision y bosques aleatorios. Para esto tomando el criterio de grafico de curva ROC, junto al area bajo la curva.
+
+
+Ejercicio 2: [30 puntos] Dada la siguiente tabla:
+
+1. Usando la definici´on de curva ROC calcule y grafique “a mano” la curva ROC, use un umbral T = 0 y un paso de 0,05. Es decir, debe hacerlo variando el umbral y calculando las matrices de confusi´on.
+
+##Ver archivo Excel adjunto
+
+2. Verifique el resultado anterior usando el c´odigo visto en clase.
+
+```{r cache=TRUE}
+library(ROCR)
+
+Clase <- c(0,1,0,1,0,0,1,0,1,0)
+Score <- c(0.8,0.11,0.66,0.4,0.00,0.46,0.61,0.06,0.91,0.19)
+
+# Graficamos ROC con funciones de paquete ROCR
+plotROC(Score, Clase)
+
+# Graficamos puntos con algoritmo
+i <- 1  # Contador
+FP_r <- -1  # Para que entre al condicional en la primera iteración
+TP_r <- -1  # Para que entre al condicional en la primera iteración
+
+for(Umbral in seq(1, 0, by = -0.05)) {
+  
+  Prediccion <- ifelse(Score >= Umbral, 1, 0)
+  
+  MC <- table(Clase, Pred = factor(Prediccion, levels = c(0, 1)))
+  
+  # Condicional para no imprimir puntos repetidos
+  if(FP_r != MC[1, 2] / sum(MC[1, ]) | TP_r != MC[2, 2] / sum(MC[2, ])) {
+    
+    FP_r <- MC[1, 2] / sum(MC[1, ])  # Tasa de Falsos Positivos
+    TP_r <- MC[2, 2] / sum(MC[2, ])  # Tasa de Verdaderos Positivos
+    
+    # Graficamos punto
+    points(FP_r, TP_r, col = "blue")
+    text(FP_r + 0.02, TP_r - 0.02, Umbral)
+    
+    # Imprimimos resultados
+    cat("Punto i = ", i, "\n")  
+    cat("Umbral = T = ", Umbral, "\n")
+    cat("MC = \n")
+    print(MC)
+    cat("Tasa FP = ", round(FP_r, 2), "\n")
+    cat("Tasa TP = ", round(TP_r, 2), "\n") 
+    cat("\n") 
+    
+    i <- i + 1  # Aumentamos contador
+    
+  }
+  
+}
+```
+
+3. Usando el algoritmo eficiente para la curva ROC calcule y grafique “a mano” la curva ROC, use un umbral T = 0,1 y un paso de 0,1.
+
+##Ver archivo Excel adjunto
+
+4. Verifique el resultado anterior usando el c´odigo visto en clase para el algoritmo eficiente.
+
+```{r cache=TRUE}
+library(ROCR)
+
+Clase <- c(1,0,0,1,0,1,0,1,0,0)
+Score <- c(.91, .80, .66, .61, .46, .40, .19, .11, .06, .00)
+
+plotROC(Score, Clase)
+
+# Aquí se inicializan para que dé igual a la corrida a pie
+Umbral <- 0.1
+Paso <- 0.1
+
+N <- 6 # ceros
+P <- 4 # unos
+
+TP <- 0 
+FP <- 0
+
+for(i in 1:10) {
+  
+  if(Score[i] > Umbral)
+    if(Clase[i] == 1)
+      TP <- TP + 1
+    else 
+      FP <- FP + 1
+    else 
+      if(Clase[i] == 0)
+        FP <- FP + 1
+      else 
+        TP <- TP + 1
+      
+      # Graficamos punto
+      points(FP / N, TP / P, col = "blue")
+      text(FP / N + 0.02, TP/P - 0.02, round(Umbral, 2))
+      
+      # Imprimimos resultado
+      cat("Punto i = ", i, "\n")  
+      cat("Umbral = T = ", Umbral, "\n")
+      cat("FP/N = ", round(FP / N, 2), "\n")
+      cat("TP/P = ", round(TP / P, 2), "\n") 
+      cat("\n") 
+      
+      Umbral <- Umbral + Paso  
+}
+```
+
+
+Ejercicio 3: [30 puntos] Esta pregunta utiliza los datos SAheart.csv sobre muerte del coraz´on en Sud´africa. La variable que queremos predecir es chd que es un indicador de muerte coronaria basado en algunas variables predictivas (factores de riesgo) como son el fumado, la obesidad, las bebidas alcoh´olicas, entre otras. Las variables son:
+Realice lo siguiente:
+
+1. Usando Bosques Aleatorios (train.randomForest(...) del paquete traineR) para la tabla SAheart.csv con el 80 % de los datos para la tabla aprendizaje y un 20 % para la
+tabla testing determine la mejor Probabilidad de Corte, de forma tal que se prediga de la mejor manera posible la categor´ıa Si de la variable chd, pero sin desmejorar de manera significativa la precisi´on global.
+
+```{r cache=TRUE}
+setwd("C:/Users/rzamoram/OneDrive - Intel Corporation/Documents/Machine Learning/Mineria de Datos I/Clase1")
+datos<-read.csv("SAheart.csv",sep=';',dec='.',header=T)
+head(datos)
+```
+
+```{r cache=TRUE}
+library(caret)
+summary(datos)
+```
+
+```{r cache=TRUE}
+datos$chd <- factor(datos$chd,ordered = TRUE)
+datos$famhist <- factor(datos$famhist,ordered = TRUE)
+str(datos)
+```
+
+```{r cache=TRUE}
+dim(datos)
+```
+
+```{r cache=TRUE}
+barplot(prop.table(table(datos$chd)),col=c("orange","blue","green"),main="Distribución de la variable por predecir")
+```
+
+El problema esta desbalanceado
+
+```{r cache=TRUE}
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+modelo <- train.randomForest(chd ~ ., data = taprendizaje)
+prediccion <- predict(modelo, ttesting)
+MC <- confusion.matrix(ttesting, prediccion)
+general.indexes(mc=MC)
+```
+
+```{r cache=TRUE}
+prediccion <- predict(modelo, ttesting, type = "prob") 
+Clase <- ttesting[,10]
+head(Clase)
+```
+
+```{r cache=TRUE}
+Score <- prediccion$prediction[,2]
+head(Score)
+```
+
+```{r cache=TRUE}
+Corte <- 0.5
+Prediccion <- ifelse(Score > Corte, "Si", "No")
+MC <- table(Clase, Pred = factor(Prediccion, levels = c("No", "Si")))
+general.indexes(mc=MC)
+```
+Usando una probabilidad de corte incialmente estimada unicamente con 0.5, se denota que la exactitud del modelo esta en 0.7065 lo que indica que puede mejorar especialmente al tener un 0.51 en la categoria de si y se busca maximizar esta categoria.
+
+```{r cache=TRUE}
+# Con Corte en Probabilidad = 0.7, da diferente
+Clase <- ttesting[,10]
+Score <- prediccion$prediction[,2]
+Corte <- 0.7
+Prediccion <- ifelse(Score >= Corte, "Si", "No")
+MC <- table(Clase, Pred = factor(Prediccion, levels = c("No", "Si")))
+general.indexes(mc=MC)
+```
+
+Resulta notorio que con una probabilidad de corte de 0.7 el modelo empeoro en precision de categoria Si y en exactitud del modelo
+
+```{r cache=TRUE}
+Clase <- ttesting[,10]
+Score <- prediccion$prediction[,2]
+for(Corte in seq(1, 0, by = -0.05)) {
+  Prediccion <- ifelse(Score >= Corte, "Si", "No")
+  MC <- table(Clase, Pred = factor(Prediccion, levels = c("No", "Si")))
+  cat("\nCorte usado para la Probabilidad = ")
+  cat(Corte)
+  cat("\n")
+  print(general.indexes(mc=MC))
+  cat("\n========================================")
+}
+```
+
+Se denota que conforme aumenta la probabilidad de corte la precision global aumenta, pero opuesto parece disminuir la precision por categoria de Si en la variable. A partir de probabilidad de corte de 0.5 la precision de prediccion de Si se viene abajo de 0,50, en este caso, se vuelve poco servible. Pero por otro lado la precision global del modelo es inferior a 0,50 cuando la probabilidad de corte es menor de 0.1. Parece que elegir un punto entre estos conviene para maximizar la precision y la precision del Si, desde un punto de vista personal la probabilidad de corte deberia estar segun las indicaciones de este modelo en 0.35, ya que es aqui donde las precisiones llegan a puntos similares la categoria Si llega a 0.666667 y la exactitud del modelo se estima en 0.6522, es decir, en ambas estimaciones parece estar parecido.
+
+
+2. Repita el ejercicio anterior usando XGBoosting. ¿Cambi´o la probabilidad de corte? Explique.
+
+```{r cache=TRUE}
+modelo <- train.xgboost(chd ~ ., data = taprendizaje, nrounds = 79, print_every_n = 10, maximize = F , eval_metric = "error")
+prediccion <- predict(modelo, ttesting)
+MC <- confusion.matrix(ttesting, prediccion)
+general.indexes(mc=MC)
+```
+
+```{r cache=TRUE}
+prediccion <- predict(modelo, ttesting, type = "prob") 
+Clase <- ttesting[,10]
+head(Clase)
+```
+
+```{r cache=TRUE}
+Score <- prediccion$prediction[,2]
+head(Score)
+```
+
+```{r cache=TRUE}
+Clase <- ttesting[,10]
+Score <- prediccion$prediction[,2]
+for(Corte in seq(1, 0, by = -0.05)) {
+  Prediccion <- ifelse(Score >= Corte, "Si", "No")
+  MC <- table(Clase, Pred = factor(Prediccion, levels = c("No", "Si")))
+  cat("\nCorte usado para la Probabilidad = ")
+  cat(Corte)
+  cat("\n")
+  print(general.indexes(mc=MC))
+  cat("\n========================================")
+}
+```
+
+Existe una situacion similar, es decir, conforme aumenta la probabilidad de corte la precision global aumenta, pero opuesto parece disminuir la precision por categoria de Si en la variable. A partir de probabilidad de corte de 0.5 la precision de prediccion de Si se viene abajo de 0,50, en este caso, se vuelve poco servible. Pero por otro lado la precision global del modelo es inferior a 0,50 cuando la probabilidad de corte es menor. Parece que elegir un punto entre estos conviene para maximizar la precision y la precision del Si, desde un punto de vista personal la probabilidad de corte deberia estar segun las indicaciones de este modelo en 0.2 o tambien 0,15 donde las estimacion son iguales, ya que es aqui donde las precisiones llegan a puntos similares la categoria Si llega a 0.636364 y la exactitud del modelo se estima en 0.6630, es decir, en ambas estimaciones parece estar parecido.
+
+
+
+
+
