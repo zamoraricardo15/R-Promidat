@@ -1,0 +1,219 @@
+---
+title: "Tarea 4_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "4/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+#Tarea 04
+#Mineria de Datos I
+#Ricardo Zamora Mennigke
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(scales)
+```
+
+
+Pregunta 1: [25 puntos] [no usar rpart] Considere los datos de entrenamiento que se muestran en la siguiente Tabla para un problema de clasificacion binaria.
+
+```{r prrrgregr, echo=TRUE}
+###Ver Excel
+```
+
+
+
+Pregunta 2: [25 puntos] En este ejercicio usaremos los datos (voces.csv). Se trata de un problema de reconocimiento de g´enero mediante el an´alisis de la voz y el habla. Esta base de datos fue creada para identificar una voz como masculina o femenina, bas´andose en las propiedades ac´usticas de la voz y el habla. El conjunto de datos consta de 3.168 muestras de voz grabadas, recogidas de hablantes masculinos y femeninos. Las muestras de voz se preprocesan mediante an´alisis ac´ustico en R, utilizando los paquetes de ondas marinas y de sinton´ıa de R, con un rango de frecuencia analizada de 0hz-280hz (rango vocal humano).
+
+1. Cargue la tabla de datos voces.csv en R. No olvide recodificar la variable a predecir como categorica.
+
+```{r pruiwuifrgegerghjhsjdhfjhdessureg, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+datos<-read.csv("voces.csv",dec='.',header=T)
+str(datos)
+datos$genero <- factor(datos$genero,ordered = TRUE) ##ya es un factor es una linea repetitiva pero que ordena 
+```
+
+2. Usando Arboles de Decision (con traineR) con 80 % de los datos para tabla aprendizaje y un 20 % para la tabla testing genere un modelo predictivo, grafique el arbol obtenido.
+
+```{r pueyfifijfjressurec, echo=TRUE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  precision.positiva <- MC[2, 2]/(MC[2, 2] + MC[2, 1])
+  precision.negativa <- MC[1, 1]/(MC[1, 1] + MC[1, 2])
+  falsos.positivos <- 1 - precision.negativa
+  falsos.negativos <- 1 - precision.positiva
+  asertividad.positiva <- MC[2, 2]/(MC[1, 2] + MC[2, 2])
+  asertividad.negativa <- MC[1, 1]/(MC[1, 1] + MC[2, 1])
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria, precision.positiva = precision.positiva, precision.negativa=precision.negativa, 
+              falsos.positivos=falsos.positivos, falsos.negativos=falsos.negativos, asertividad.positiva=asertividad.positiva,
+              asertividad.negativa=asertividad.negativa)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", "Precisión por categoría", "Precision Positiva", "Precision Negativa",
+                  "Falsos Positivos", "Falsos Negativos", "Asertividad Positiva", "Asertividad Negativa")
+  return(res)
+}
+
+```
+
+```{r pruiwuifhjhdessureg, echo=TRUE}
+library(rpart)
+library(rpart.plot)
+
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+modelo <- rpart(genero~.,data=taprendizaje)
+prediccion <- predict(modelo, ttesting, type='class')
+prp(modelo,extra=104,branch.type=2, box.col=c("pink", "palegreen3","cyan")[modelo$frame$yval])
+```
+
+3. Con la tabla de testing calcule la matriz de confusi´on, la precision, la precision positiva, la precisi´on negativa, los falsos positivos, los falsos negativos, la acertividad positiva y la acertividad negativa. Compare los resultados con los obtenidos en las tareas anteriores ¿Cual es mejor?
+
+```{r pressfhfireg, echo=TRUE}
+MC <- table(ttesting$genero, prediccion)
+indices.general(MC)
+```
+
+Con una precision global de 0.9462875, es un poco mas bajo respecto a las tareas anteriores. Se denota que el modelo presenta muchos datos confundidos tanto a nivel de falsos positivos como precision negativa.Analizando respecto a las redes neuronales este metodo de arboles resulta mas rapido de estimar.
+Ademas la estimacion de las redes tarda mas entre mas cantidad de nodos, pero la precision global y el error global en los tres casos de redes se mantienen entre 97 y 98%, y 2% y 3%, respectivamente. De los cinco modelos (arbol, 3 redes, kvecinos) tomando precision global como criterio principal, la red neuronal con 4 nodos en este caso tiene la precision mas alta incluso tomando la tarea de la semana pasada, pero se denota que no existe diferencia significativa, ya que siguiendo la finalidad de este ejercicio se realizan distintas simulaciones para comparar. En la mayoria de los casos la precision de la red neuronal de 4 nodos es la que mejor estimacion ha dado, pero todas las estimaciones usando k vecinos y redes neuronales con distinta cantidad de nodos, han dado precisiones de entre 96,68% y 98,26% como ocurrio en el de 4 nodos contra 15 nodos, es decir, no se notan diferencias significativas. Debe indicarse que la precision del arbol es la menor con un error global ligeramente superior a 5%
+
+
+
+
+
+Pregunta 3: [25 puntos] Esta pregunta utiliza los datos (tumores.csv). Se trata de un conjunto de datos de caracter´ısticas del tumor cerebral que incluye cinco variables de primer orden y ocho de textura y cuatro par´ametros de evaluaci´on de la calidad con el nivel objetivo. La variables son: Media, Varianza, Desviaci´on est´andar, Asimetr´ıa, Kurtosis, Contraste, Energ´ıa, ASM (segundo momento angular), Entrop´ıa, Homogeneidad, Disimilitud, Correlaci´on, Grosor, PSNR (Pico de la relaci´on se˜nal-ruido), SSIM (´Indice de Similitud Estructurada), MSE (Mean Square Error), DC (Coeficiente de Dados) y la variable a predecir tipo (1 = Tumor, 0 = No-Tumor).
+
+
+
+
+1. Cargue la tabla de datos tumores.csv en R y genere en R usando la funci´on createDataPartition(...) del paquete caret la tabla de testing con una 25 % de los datos y con el resto de los datos genere una tabla de aprendizaje.
+
+```{r pruryjfhjhfhurel, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data1<-read.csv("tumores.csv",dec='.',header=T)
+head(data1)
+```
+
+```{r presuweyryueysuueyf8ryeioremaa, echo=TRUE}
+library(caret)
+data1$tipo <- factor(data1$tipo,ordered = TRUE)
+```
+
+```{r preseuywruiywryrysuuremaa, echo=TRUE}
+str(data1)
+```
+
+```{r pressuueyf8ryetutiutoremaa, echo=TRUE}
+intrain <- createDataPartition(
+  y = data1$tipo,
+  p = .75,
+  list = FALSE
+)
+str(intrain)
+```
+
+```{r prywtebdfngmgessuuremaa, echo=TRUE}
+taprendizaje <- data1[ intrain,]
+ttesting  <- data1[-intrain,]
+
+nrow(taprendizaje)
+nrow(ttesting)
+```
+
+2. Usando ´arboles de Decisi´on (con traineR) genere un modelo predictivo para la tabla de aprendizaje. Modifique los par´ametros del ´arbol de decisi´on para lograr los mejores resultados posibles.
+
+
+```{r pressuueyf8ruttutiutoremaa, echo=TRUE}
+library(traineR)
+library(rpart.plot)
+```
+
+```{r pressuueyf8ryeiertutoremaa, echo=TRUE}
+
+modelo <- train.rpart(tipo~.,data=taprendizaje, minsplit = 2)
+prediccion <- predict(modelo, ttesting, type='class')
+mc <-  confusion.matrix(newdata = ttesting, prediccion)
+general.indexes(mc=mc)
+```
+
+```{r pressuueyf8ryetoremaa, echo=TRUE}
+prp(modelo,extra=104, branch.type=2, box.col=c("pink","palegreen3", "cyan")[modelo$frame$yval])
+```
+
+3. Construya una tabla para los ´ındices anteriores que permita comparar el resultado de los ´arboles de Decisi´on con respecto a los metodos generados en las tareas anteriores ¿Cual metodo es mejor?
+
+```{r preek, echo=TRUE}
+x <- data.frame("Modelo" = c("Modelo k-vecinos", "Modelo kvecinos.traineR", "Modelo Red 2 nodos", "Modelo Arbol Decision"), "Precision Global" = c(0.9559748, 0.9402516, 0.9497, 0.9717), "Error Global" = c(0.04402516, 0.05974843, 0.0503, 0.0283))
+x
+
+
+```
+
+Comparando de forma sencillo los modelos mas acertados en las tres tareas anteriores, ya que se han dado varios intentos con resultados de toda clase. El arbol de decision parece ser en este ejercicio el que mejor esta asimilando los datos para explicar la variabilidad del caso. Tiene una precision global bastante alta. De hecho, todos los casos probables de no tumor los identifica. Aun asi debe indicarse que se trata con tumores, lo implica que se necesita replantear el modelo, dado que se trata de tumores, lo que es mas importante, es probable que se requier un tamano de muestra mas grande para arrojar datos veridicos ya que en este caso los modelos no estan leyendo completamente bien los casos.
+
+
+
+
+
+Ejercicio 4: [25 puntos] En este ejercicio vamos a predecir n´umeros escritos a mano (Hand Written Digit Recognition), la tabla de de datos est´a en el archivo ZipData 2020.csv. En la figura siguiente se ilustran los datos:
+
+1. Cargue la tabla de datos ZipData 2020.csv en R.
+
+```{r pressryweiyriouioqfhklfjureo, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+data2<-read.csv("ZipData_2020.csv",sep=";",dec='.',header=T)
+head(data2)
+```
+
+```{r preseewuifewuiyfhoruioweusureo, echo=TRUE}
+str(data2)
+```
+
+2. Use el m´etodo de Arboles de Decisi´on con el m´etodo y los par´ametros que usted conside- ´re m´as conveniente para generar un modelo predictivo para la tabla ZipData 2020.csv usando el 80 % de los datos para la tabla aprendizaje y un 20 % para la tabla testing, luego calcule para los datos de testing la matriz de confusi´on, la precisi´on global y la precisi´on para cada una de las categor´ıas. ¿Son buenos los resultados? Explique.
+
+```{r prrweiayiouwureg, echo=TRUE}
+muestra <- sample(1:nrow(data2),floor(nrow(data2)*0.20))
+ttesting <- data2[muestra,]
+taprendizaje <- data2[-muestra,]
+modelo <- train.rpart(formula = Numero~.,
+               data = taprendizaje,
+               minsplit = 2)
+prediccion <- predict(modelo,
+                      ttesting,
+                      type='class')
+prp(modelo,
+    extra = 104,
+    branch.type = 2, 
+    box.col=c("pink", "palegreen3")[modelo$frame$yval])
+```
+
+
+```{r prhaihgoiahgiosureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+La precision global de 0.73 muestra que el arbol de decision no esta logrando identificar bien los casos. Se requiere aumentar la muestra o en dado caso cambiar totalmente el modelo o tecnica empleada, en casos mas extremos.Esto implica que no se logran identificar bien los numeros y casi un 26,57% de los codigos postales escritos estan siendo mal identificados, es decir, enviados erroneamente.
+
+
+3. Compare los resultados con los obtenidos en las tareas anteriores.
+
+Debe senalarse que de los modelos anteriores el de arboles de decision tiene peor desempeno. A pesar de ello, puede senalarse la red neuronal tanto nnet como neuralnet tardan mucho en procesar los datos, mucho mas que en el caso de los kvecinos, por lo que, para el uso de equipo con baja capacidad de procesamiento puede resultar mas optimo kvencinos. En el caso de los kvecinos se obtuvieron mejores resultados. La precision global de 0.9585799, con kvecinos es superior que con la aproximacion de redes nnet (0.8682087). 
+
+
+
+

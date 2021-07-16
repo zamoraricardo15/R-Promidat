@@ -1,0 +1,815 @@
+---
+title: "Tarea 2_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "4/1/2020"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=TRUE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+```{r cars}
+summary(cars)
+```
+
+
+#Tarea 02
+#Mineria de Datos I
+#Ricardo Zamora Mennigke
+
+```{r pressurea, echo=TRUE}
+#install.packages("knitr",dependencies = T)
+#install.packages("rmarkdown", dependencies = T)
+#install.packages("tidyverse", dependencies = T)
+#install.packages("kknn", dependencies = T)
+#install.packages("ggplot2", dependencies = T)
+library(knitr)
+library(rmarkdown)
+library(tidyverse)
+library(kknn)
+library(ggplot2)
+```
+
+#Ejercicio 1
+
+##Programe en lenguaje R una funcion que reciba como entrada la matriz de confusion (para el caso 2 × 2) que calcule y retorne en una lista: la Precision Global, el Error Global, la Precision Positiva (PP), la Precision Negativa (PN), los Falsos Positivos (FP), los Falsos Negativos (FN), la Asertividad Positiva (AP) y la Asertividad Negativa (NP).
+
+```{r pressurec, echo=TRUE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  precision.positiva <- MC[2, 2]/(MC[2, 2] + MC[2, 1])
+  precision.negativa <- MC[1, 1]/(MC[1, 1] + MC[1, 2])
+  falsos.positivos <- 1 - precision.negativa
+  falsos.negativos <- 1 - precision.positiva
+  asertividad.positiva <- MC[2, 2]/(MC[1, 2] + MC[2, 2])
+  asertividad.negativa <- MC[1, 1]/(MC[1, 1] + MC[2, 1])
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria, precision.positiva = precision.positiva, precision.negativa=precision.negativa, 
+              falsos.positivos=falsos.positivos, falsos.negativos=falsos.negativos, asertividad.positiva=asertividad.positiva,
+              asertividad.negativa=asertividad.negativa)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", "Precisión por categoría", "Precision Positiva", "Precision Negativa",
+                  "Falsos Positivos", "Falsos Negativos", "Asertividad Positiva", "Asertividad Negativa")
+  return(res)
+}
+
+```
+
+##Supongamos que tenemos un modelo predictivo para detectar Fraude en Tarjetas de Credito, la variable a predecir es Fraude con dos posibles valores Sı (para el caso en que sı fue fraude) y No (para el caso en que no fue fraude). Supongamos la matriz de confusi´on es:
+
+
+```{r pressured, echo=TRUE}
+MC <- matrix(c(892254, 212, 8993, 300),ncol=2,byrow=TRUE)
+MC
+```
+
+
+
+##Calcule la Precisi´on Global, el Error Global, la Precisi´on Positiva (PP), la Precisi´on Negativa (PN), los Falsos Positivos (FP), los Falsos Negativos (FN), la Asertividad Positiva (AP) y la Asertividad Negativa (NP).
+
+```{r pressureeasdad, echo=TRUE}
+indices.general(MC)
+```
+
+##¿Es bueno o malo el modelo predictivo? Justifique su respuesta
+
+#Inicialmente se puede entrar en el error de pensar que una precision global y un error global tan acertados indican que el modelo es adecuado. Pero para un mejor analisis un criterio experto primero senalaria inicialmente que existe una gran cantidad de falsos negativos, muy superior a los VP (verdaderos positivos), lo que indica que el modelo no esta identificando correctamente los Reales positivos por lo que el modelo ajustado no es bueno.
+
+
+#Ejercicio 2
+
+##En este ejercicio usaremos los datos (voces.csv). Se trata de un problema de reconocimiento de g´enero mediante el an´alisis de la voz y el habla. Esta base de datos fue creada para identificar una voz como masculina o femenina, bas´andose en las propiedades ac´usticas de la voz y el habla. El conjunto de datos consta de 3.168 muestras de voz grabadas, recogidas de hablantes masculinos y femeninos. Las muestras de voz se preprocesan mediante an´alisis ac´ustico en R, utilizando los paquetes de ondas marinas y de sinton´ıa de R, con un rango de frecuencia analizada de 0hz-280hz (rango vocal humano). El conjunto de datos tiene las siguientes propiedades ac´usticas (variables) de cada voz:
+
+
+##Cargue la tabla de datos voces.csv en R. No olvide recodificar la variable a predecir como categorica.
+
+```{r pressureg, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+datos<-read.csv("voces.csv",dec='.',header=T)
+str(datos)
+```
+
+##Realice un analisis exploratorio (estadısticas basicas) que incluya: el resumen numerico (media, desviacion estandar, etc.), los valores atıpicos, la correlacion entre las variables, el poder predictivo de las variables predictoras. Interprete los resultados.
+
+#Estadisticas basicas
+
+```{r presegfiufgiwefupahwgwsurei, echo=TRUE}
+
+summary(datos)
+```
+
+#Valores atipicos
+
+##mas datos atipicos en kurt
+```{r pressvfrefewiofuwpaxzureia, echo=TRUE}
+
+boxplot(datos) 
+```
+
+```{r pressureiaaksdkdkdjfhfaa, echo=TRUE}
+boxplot(datos$kurt, xlab = "kurt") 
+```
+
+```{r pressureiaaafgfrgab, echo=TRUE}
+boxplot(datos$meanfreq, xlab = "meanfreq") 
+```
+
+```{r pressurgrgrgeiaaaab, echo=TRUE}
+boxplot(datos$sd, xlab = "sd") 
+```
+
+```{r pressureiaaagrgegab, echo=TRUE}
+boxplot(datos$median, xlab = "median") 
+```
+
+
+```{r pressuregrgrgiaaaab, echo=TRUE}
+boxplot(datos$Q25, xlab = "Q25") 
+```
+
+
+```{r pressuregrgagiaaaab, echo=TRUE}
+boxplot(datos$Q75, xlab = "Q75") 
+```
+
+```{r pressureigrggergergaaaab, echo=TRUE}
+boxplot(datos$IQR, xlab = "IQR") 
+```
+
+```{r pressureiahwoweifhioeaaab, echo=TRUE}
+boxplot(datos$skew, xlab = "skew") 
+```
+
+```{r pressurejveruivgruiviaaaab, echo=TRUE}
+boxplot(datos$sp.ent, xlab = "sp.ent") 
+```
+
+```{r pressureiehvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$sfm, xlab = "sfm") 
+```
+
+```{r pressureiehviredgwyuefghfuierhaaaab, echo=TRUE}
+boxplot(datos$mode, xlab = "mode") 
+```
+
+```{r pressureiehvirefhuehwfuiheehfuierhaaaab, echo=TRUE}
+boxplot(datos$centroid, xlab = "centroid") 
+```
+
+```{r pressureiehvirhfvuirhirehfuierhaaaab, echo=TRUE}
+boxplot(datos$meanfun, xlab = "meanfun") 
+```
+
+```{r pressureiebvuirvhuirvhgdeuigfuighvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$minfun, xlab = "minfun") 
+```
+
+```{r pressureiebvuirvhuirvrhuihrioghhvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$maxfun, xlab = "maxfun") 
+```
+
+```{r pressureiebvuirvefgiugfuhuirvhhvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$meandom, xlab = "meandom") 
+```
+
+```{r pressureiebvuirveughuifghuiefhuirvhhvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$mindom, xlab = "mindom") 
+```
+
+```{r pressureiebvuirvhuirvgefgiuiguehhvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$maxdom, xlab = "maxdom") 
+```
+
+```{r pressureiebvuirvhuirvguefghfuierhaaaab, echo=TRUE}
+boxplot(datos$dfrange, xlab = "dfrange") 
+```
+
+```{r pressurguiegfuiguehhvirehfuierhaaaab, echo=TRUE}
+boxplot(datos$modindx, xlab = "modindx") 
+```
+
+```{r pressureiaaaab, echo=TRUE}
+datos2 <- datos[,(-21)]
+cor(datos2) 
+```
+
+#Se denota que pueden haber variables correlacionadas y que por ende podrian eliminarse del modelo
+```{r pressureiaaalskkdhaba, echo=TRUE}
+#install.packages(corrplot)
+library(corrplot)
+corrplot(cor(datos2), type = "upper", method="circle")
+
+```
+
+
+#Usando metodo de seleccion grafico
+
+#visualmente meanfreq posee bajo poder predictivo
+```{r pressureja, echo=TRUE}
+
+ggplot(datos, aes_string('meanfreq', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable meanfreq según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+
+```
+
+
+#sd parece tener un nivel predictivo aceptable 
+```{r pressurejb, echo=TRUE}
+ggplot(datos, aes_string('sd', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable sd según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+#median tiene poco poder predictivo
+```{r pressurejc, echo=TRUE}
+ggplot(datos, aes_string('median', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable median según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+#Q25 tiene un poder predictivo aceptable
+```{r pressurejd, echo=TRUE}
+ggplot(datos, aes_string('Q25', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable Q25 según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+
+```
+
+#Q75 tiene bajo poder predictivo sobre genero
+```{r pressuuyeuyhhfnrejda, echo=TRUE}
+ggplot(datos, aes_string('Q75', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable Q75 según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+
+```
+
+#IQR parece tener buen poder predictivo sobre genero
+```{r presswyeioyiohdncurejdaa, echo=TRUE}
+ggplot(datos, aes_string('IQR', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable IQR según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#skew parece tener bajo poder predictivo
+```{r pressureqyswiohjshcbsbcjdaaa, echo=TRUE}
+ggplot(datos, aes_string('skew', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable skew según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#kurt parece tener bajo poder predictivo
+```{r pressurejdpqieowuhfjvbabbaa, echo=TRUE}
+ggplot(datos, aes_string('kurt', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable kurt según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#sp.ent parece tener un nivel medio  predictivo sobre genero
+```{r pressuyerioyfhjhcrejdabbaaaa, echo=TRUE}
+ggplot(datos, aes_string('sp.ent', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable sp.ent según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#sfm parece tener un nivel medio  predictivo sobre genero
+```{r predrfgssurejdaaabhoerfiyoichcbaaaa, echo=TRUE}
+ggplot(datos, aes_string('sfm', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable sfm según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+#mode tiene un nivel bajo de predicion
+```{r pressufegrgrejdaaabbaaaab, echo=TRUE}
+ggplot(datos, aes_string('mode', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable mode según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#centroid tiene un bajo nivel predictivo
+```{r pressurgrgrejdaaabbaaaaba, echo=TRUE}
+ggplot(datos, aes_string('centroid', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable centroid según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+#meanfun tiene un buen nivel predictivo
+```{r presgrgsurejdaaabbaaagrggabaaa, echo=TRUE}
+ggplot(datos, aes_string('meanfun', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable meanfun según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#minfun tiene un nivel bajo de prediccion
+```{r pressaaabaaaaa, echo=TRUE}
+ggplot(datos, aes_string('minfun', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable minfun según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#maxfun tiene un nivel bajo de prediccion
+```{r pressrggrgurejdaaabbabaaabburhfuiaa, echo=TRUE}
+ggplot(datos, aes_string('maxfun', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable maxfun según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#meandom tiene un nivel bajo de prediccion
+```{r pressurhuierghaaabbaa, echo=TRUE}
+ggplot(datos, aes_string('meandom', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable meandom según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#mindom mantiene un poder predictivo bajo
+```{r pressuraaeldfwepfbaa, echo=TRUE}
+ggplot(datos, aes_string('mindom', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable mindom según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#maxdom tiene un poder predictivo bajo 
+```{r pressurfgiufgiuerghroaaa, echo=TRUE}
+ggplot(datos, aes_string('maxdom', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable maxdom según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#dfrange tiene un poder predictivo bajo
+```{r pressuraaejrehgrioehgiergherighaa, echo=TRUE}
+ggplot(datos, aes_string('dfrange', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable dfrange según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+
+#modindx tiene un poder predictivo bajo
+```{r presirheiughoighrioaaaa, echo=TRUE}
+ggplot(datos, aes_string('modindx', fill = 'genero')) +
+geom_density( alpha = .85) +
+theme_minimal() +
+theme(text = element_text(size=15)) +
+scale_fill_manual(values = define.colores(length(levels(datos[,'genero'])))) +
+labs(title = 'Densidad de la variable modindx según genero', y = '', x = '') +
+theme(legend.position = 'top', legend.title = element_blank(), text = element_text(size = 15))
+
+#
+```
+
+#Inicialmente se utiliza todo el dataset ya que es exploratorio, 56 por ser la raiz cuadrada(df)
+#Se denota un poder predictivo alto, segun el error probable de missclassification
+#Ademas se indican k=6, se debe usar nucleo optimal
+```{r preshuifhirhfoaaba, echo=TRUE}
+modelo<-train.kknn(genero~.,data=datos,kmax=56) 
+modelo #
+#
+```
+
+##¿Es este problema equilibrado o desequilibrado? Justifique su respuesta.
+
+#El problema es equilibrado, en ambos generos se presenta una muestra de igual tamano
+
+```{r pressurei, echo=TRUE}
+barplot(prop.table(table(datos$genero)),col=c("orange","blue"),main="Distribución de la variable por predecir")
+#
+```
+
+##Use el metodo de K vecinos mas cercanos en R (con los parametros por defecto, de decir, K maximo = 20, nucleo optimal y Escalar Datos en TRUE) para generar un modelo predictivo para la tabla voces.csv usando el 80 % de los datos para la tabla aprendizaje y un 20 % para la tabla testing, luego calcule para los datos de testing la matriz de confusion, la precisi´on global y la precision para cada una de las dos categorıas. ¿Son buenos los resultados? Explique.
+
+```{r pressureiaaaabftgutiua, echo=TRUE}
+modelo<-train.kknn(genero~.,data=datos,kmax=20, kernel = "optimal") 
+modelo 
+```
+
+```{r pressufgergrerema, echo=TRUE}
+tam<-dim(datos)
+n<-tam[1]
+n
+```
+
+```{r pressurehfioyhwofiyoemaa, echo=TRUE}
+muestra <- sample(1:n,floor(n*0.2))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+# train.kknn escoje el k usando leave-one-out crossvalidation
+modelo<-train.kknn(genero~.,data=taprendizaje,kmax=floor(sqrt(n)))
+modelo
+```
+
+```{r prerigjrijgjrgjevknvnssuremaab, echo=TRUE}
+prediccion<-predict(modelo,ttesting[,-21])
+prediccion
+
+```
+
+
+#Precisión Global = 0.9731438
+#Precisión por categoría:  Femenino = 0.9652997 / Masculino = 0.9810127
+#El modelo presenta una alta precision global y por categorias, la matriz de confusion muestra pocos falsos, lo que indica que el modelo tiene buen poder predictivo
+```{r pressuueyf8ryeioremaa, echo=TRUE}
+## Matriz de Confusión
+MC<-table(ttesting[,21],prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+
+
+```
+
+##Repita el item d), pero esta vez, seleccione las 6 variables que, segun su criterio, tienen mejor poder predictivo. ¿Mejoran los resultados?
+
+
+```{r preseiewuejfecnjsurejda, echo=TRUE}
+modelo<-train.kknn(genero~sd+Q25+IQR+meanfun+sp.ent+sfm,data=taprendizaje,kmax=20)
+modelo
+```
+
+```{r pressurejdgferuia, echo=TRUE}
+prediccion<-predict(modelo,ttesting[,-21])
+prediccion
+```
+
+
+#Precisión Global = 0.9810427
+#Precisión por categoría:  Femenino = 0.9842271  / Masculino = 0.9778481 
+#El modelo presenta una mayor precision global y por categorias disminuye en la prediccion masculina, la matriz de confusion muestra menos falsos, lo que indica que el modelo tiene mejor poder predictivo solo con estas seis variables, lo cual indica que dentro del resto de variables eliminadas para esta estimacion habian algunas que mas bien sesgaban la prediccion
+```{r pressurehjhgffmaa, echo=TRUE}
+## Matriz de Confusión
+MC<-table(ttesting[,21],prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+
+
+```
+
+
+##Usando la funcion programada en el ejercicio 1, los datos voces.csv y los modelos generados arriba construya un DataFrame de manera que en cada una de las filas aparezca un modelo predictivo y en las columnas aparezcan los ındices Precision Global, Error Global, Precision Positiva (PP), Precision Negativa (PN), Falsos Positivos (FP), los Falsos Negativos (FN), la Asertividad Positiva (AP) y la Asertividad Negativa (AN). ¿Cual de los modelos es mejor para estos datos?
+
+
+#El modelo del ejercicio no se puede comparar con los del ejercicio 2 al ser distintos.
+#El modelo reducido de seis variables (sd, Q25, IQR, meanfun, sp.ent, sfm) se ve ligeramente mejor de emplear para los datos 
+```{r pressurek, echo=TRUE}
+x <- data.frame("Modelo" = c("Modelo Ejercicio 1", "Modelo Ejercicio 2/Todas las variables", "Modelo Ejercicio 2/Seis variables"), "Precision Global" = c(0.9897922, 0.9731438, 0.9810427), "Error Global" = c(0.01020783, 0.02685624, 0.01895735), "Precision Positiva (PP)" = c(0.03228236, 0.9810127, 0.9778481), "Precision Negativa (PN)" = c(0.9997625, 0.9652997, 0.9842271), "Falsos Positivos (FP)" = c(0.0002375441, 0.03470032, 0.01577287), "Falsos Negativos (FN)" = c(0.9677176, 0.01898734, 0.0221519), "Asertividad Positiva (AP)" = c(0.5859375, 0.9657321, 0.9840764), "Asertividad Negativa (AN)" = c(0.9900216, 0.9807692, 0.9780564))
+x
+
+
+```
+
+#Ejercicio 3
+
+##Esta pregunta utiliza los datos (tumores.csv). Se trata de un conjunto de datos de caracter´ısticas del tumor cerebral que incluye cinco variables de primer orden y ocho de textura y cuatro par´ametros de evaluaci´on de la calidad con el nivel objetivo. La variables son: Media, Varianza, Desviaci´on est´andar, Asimetr´ıa, Kurtosis, Contraste, Energ´ıa, ASM (segundo momento angular), Entrop´ıa, Homogeneidad, Disimilitud, Correlaci´on, Grosor, PSNR (Pico de la relaci´on se˜nal-ruido), SSIM (´Indice de Similitud Estructurada), MSE (Mean Square Error), DC (Coeficiente de Dados) y la variable a predecir tipo (1 = Tumor, 0 = No-Tumor).
+
+```{r pressurel, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data1<-read.csv("tumores.csv",dec='.',header=T)
+head(data1)
+```
+
+```{r pressurela, echo=TRUE}
+str(data1)
+```
+
+```{r pressurelb, echo=TRUE}
+barplot(prop.table(table(data1$tipo)),col=c("orange","blue"),main="Distribución de la variable por predecir")
+```
+
+##Use el metodo de K vecinos mas cercanos en R para generar un modelo predictivo para la tabla tumores.csv usando el 75 % de los datos para la tabla aprendizaje y un 25 % para la tabla testing. No olvide recodificar, desde R, la variable a predecir como categ´orica.
+
+```{r pressurem, echo=TRUE}
+data1$imagen <- factor(data1$imagen)
+data1$tipo <- factor(data1$tipo)
+str(data1)
+```
+
+```{r presgregergegsurema, echo=TRUE}
+tam<-dim(data1)
+n<-tam[1]
+n
+
+```
+
+```{r pressurwwqduiioyoeoemaa, echo=TRUE}
+muestra <- sample(1:n,floor(n*0.25))
+ttesting <- data1[muestra,]
+taprendizaje <- data1[-muestra,]
+# train.kknn escoje el k usando leave-one-out crossvalidation
+modelo<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)))
+modelo
+```
+
+```{r pressfdgjsuremaab, echo=TRUE}
+prediccion<-predict(modelo,ttesting[,-18])
+prediccion
+
+```
+
+```{r prestyuwjnssuremaa, echo=TRUE}
+## Matriz de Confusión
+MC<-table(ttesting[,18],prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+##Genere un Modelo Predictivo usando K vecinos m´as cercanos para cada uno de los siguientes n´ucleos: rectangular, triangular, epanechnikov, biweight, triweight, cos, inv, gaussian y optimal ¿Cu´al produce los mejores resultados en el sentido de que predice mejor los tumores, es decir, Tumor = 1.
+
+```{r preieyoiefoiwehfossuren, echo=TRUE}
+modelo.rectangular<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "rectangular")
+modelo.rectangular
+modelo.triangular<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "triangular")
+modelo.triangular
+modelo.epanechnikov<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "epanechnikov")
+modelo.epanechnikov
+modelo.biweight<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "biweight")
+modelo.biweight
+modelo.triweight<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "triweight")
+modelo.triweight
+modelo.cos<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "cos")
+modelo.cos
+modelo.inv<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "inv")
+modelo.inv
+modelo.gaussian<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "gaussian")
+modelo.gaussian
+modelo.optimal<-train.kknn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)), kernel = "optimal")
+modelo.optimal
+```
+
+```{r pressufgwdgfghgrenaa, echo=TRUE}
+prediccion1<-predict(modelo.rectangular,ttesting[,-18])
+prediccion1
+prediccion2<-predict(modelo.triangular,ttesting[,-18])
+prediccion2
+prediccion3<-predict(modelo.epanechnikov,ttesting[,-18])
+prediccion3
+prediccion4<-predict(modelo.biweight,ttesting[,-18])
+prediccion4
+prediccion5<-predict(modelo.triweight,ttesting[,-18])
+prediccion5
+prediccion6<-predict(modelo.cos,ttesting[,-18])
+prediccion6
+prediccion7<-predict(modelo.inv,ttesting[,-18])
+prediccion7
+prediccion8<-predict(modelo.gaussian,ttesting[,-18])
+prediccion8
+prediccion9<-predict(modelo.optimal,ttesting[,-18])
+prediccion9
+```
+
+#rectangular
+```{r pressurewyqwuioyeionajhfgugba, echo=TRUE}
+MC1<-table(ttesting[,18],prediccion1)
+indices.general(MC1) 
+```
+
+
+#triangular
+```{r presefgwsegferhrtjhtjykulsurenaa, echo=TRUE}
+MC2<-table(ttesting[,18],prediccion2)
+indices.general(MC2) 
+```
+
+
+#epanechnikov
+```{r pressuefwhgfhjrenaaaa, echo=TRUE}
+MC3<-table(ttesting[,18],prediccion3)
+indices.general(MC3) 
+```
+
+#biweight
+```{r presswuefguiweguiurenaagdhdfjf, echo=TRUE}
+MC4<-table(ttesting[,18],prediccion4)
+indices.general(MC4) 
+```
+
+
+#triweight
+```{r pressurdfghjhenaa, echo=TRUE}
+MC5<-table(ttesting[,18],prediccion5)
+indices.general(MC5) 
+```
+
+
+#cos
+```{r pressureduwehguifgiefugbfvnmvnaahdhd, echo=TRUE}
+MC6<-table(ttesting[,18],prediccion6)
+indices.general(MC6) 
+```
+
+#inv
+```{r presswiouiwyedhdurenaafsfg, echo=TRUE}
+MC7<-table(ttesting[,18],prediccion7)
+indices.general(MC7) 
+```
+
+#gaussian
+```{r presowjdndbchdydsurenaaff, echo=TRUE}
+MC8<-table(ttesting[,18],prediccion8)
+indices.general(MC8) 
+```
+
+```{r pressuwywtfyugfjehnfrenaass, echo=TRUE}
+MC9<-table(ttesting[,18],prediccion9)
+indices.general(MC9) #optimal
+```
+
+#El que mayor cantidad de tumores = 1, como VP predice es el kernel = optimal
+
+
+#Ejercicio 4
+
+##En este ejercicio vamos a predecir n´umeros escritos a mano (Hand Written Digit Recognition), la tabla de de datos est´a en el archivo ZipData 2020.csv. En la figura siguiente se ilustran los datos:
+
+##Cargue la tabla de datos ZipData 2020.csv en R.
+
+```{r pressryweiyrioyqfhklfjureo, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data2<-read.csv("ZipData_2020.csv",sep=";",dec='.',header=T)
+head(data2)
+```
+
+```{r presehwioruioweusureo, echo=TRUE}
+str(data2)
+```
+
+
+
+##¿Es este problema equilibrado o desequilibrado? Justifique su respuesta
+
+```{r pressureq, echo=TRUE}
+modelo<-train.kknn(Numero~.,data=data2,kmax=56) 
+modelo 
+```
+
+
+#El problema no esta equilibrado, en el caso de cero y uno ambos se nota duplican la cantidad de casos respecto a los que menos casos acumulan
+```{r pressugefiuefguihfurei, echo=TRUE}
+barplot(prop.table(table(data2$Numero)),main="Distribución de la variable por predecir")
+
+```
+
+##Use el metodo de K vecinos mas cercanos en R (con los parametros por defecto) para generar un modelo predictivo para la tabla ZipData 2020.csv usando el 80 % de los datos para la tabla aprendizaje y un 20 % para la tabla testing, luego calcule para los datos de testing la matriz de confusion, la precision global y la precision para cada una de las categorias. ¿Son buenos los resultados? Explique.
+
+```{r pressurgergrerema, echo=TRUE}
+tam<-dim(data2)
+n<-tam[1]
+n
+```
+
+```{r pressurwipoeppeemaa, echo=TRUE}
+muestra <- sample(1:n,floor(n*0.20))
+ttesting <- data2[muestra,]
+taprendizaje <- data2[-muestra,]
+# train.kknn escoje el k usando leave-one-out crossvalidation
+modelo<-train.kknn(Numero~.,data=taprendizaje,kmax=floor(sqrt(n)))
+modelo
+```
+
+```{r pressurwuetiuwteuituwietemaab, echo=TRUE}
+prediccion<-predict(modelo,ttesting[,-1])
+prediccion
+```
+
+#Precisión por categoría
+#     cero     cinco    cuatro       dos     nueve      ocho      seis     siete      tres       uno 
+#0.9965517 0.9034483 0.9329609 0.9542857 0.9553073 0.8957055 0.9565217 0.9810127 0.9689441 0.9919355 
+
+#Se estima que habra un error global de 0.04142012, dado que es un problema que requiere mucha exactitud y precision, ademas, de que basicamente con todos los numeros existen falsos, se debe adaptar un nuevo modelo ya que los resultados predicion de este modelo no son suficientemente buenos.
+
+```{r pressioeriouqwjdfkncnuremaa, echo=TRUE}
+## Matriz de Confusión
+MC<-table(ttesting[,1],prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+
+
+```
+
+
+
+

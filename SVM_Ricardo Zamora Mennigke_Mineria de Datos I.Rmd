@@ -1,0 +1,640 @@
+---
+title: "Tarea 5_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "4/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+
+#Tarea 05
+#Mineria de Datos I
+#Ricardo Zamora Mennigke
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(scales)
+```
+
+Pregunta 1: [25 puntos] En este ejercicio usaremos los datos (voces.csv). Se trata de un problema de reconocimiento de g´enero mediante el an´alisis de la voz y el habla. Esta base de datos fue creada para identificar una voz como masculina o femenina, bas´andose en las propiedades ac´usticas de la voz y el habla. El conjunto de datos consta de 3.168 muestras de voz grabadas, recogidas de hablantes masculinos y femeninos. Las muestras de voz se preprocesan
+mediante an´alisis ac´ustico en R, utilizando los paquetes de ondas marinas y de sinton´ıa de R, con un rango de frecuencia analizada de 0hz-280hz (rango vocal humano). El conjunto de datos tiene las siguientes propiedades ac´usticas (variables) de cada voz:
+
+Realice lo siguiente:
+
+1. Cargue la tabla de datos voces.csv en R. No olvide recodificar la variable a predecir como categorica.
+
+```{r pruiwuifrgegerghjhsjdhfjhdessureg, echo=TRUE}
+equilibrio.variable.predecir <- function(datos, variable.predecir, ylab = "Cantidad de individuos", 
+                                        xlab = "", main = paste("Distribución de la variable",variable.predecir), col = NA) {
+  gg_color <- function (n) {
+     hues <- seq(15, 375, length = n + 1)
+     hcl(h = hues, l = 65, c = 100)[1:n]
+  }
+  if(missing(variable.predecir) | !(variable.predecir %in% colnames(datos))){
+    stop("variable.predecir tiene que ser ingresada y ser un nombre de columna", call. = FALSE )
+  }
+  if(is.character(datos[,variable.predecir]) | is.factor(datos[,variable.predecir])){
+    if(length(col) == 0 || is.na(col)){
+      col <- gg_color(length(unique(datos[,variable.predecir])))
+    }else{
+      col <- rep(col,length(unique(datos[,variable.predecir])))
+    }
+    ggplot(data = datos, mapping = aes_string(x = variable.predecir, fill = variable.predecir)) +
+      geom_bar() +
+      scale_fill_manual(values = col, name = variable.predecir) +
+      labs(x = xlab, y = ylab, title = main) +
+      theme_minimal() +
+      theme(legend.position = "bottom")
+  }else{
+    stop("La variable a predecir tienen que ser de tipo factor o character", call. = FALSE )
+  }
+}
+
+poder.predictivo.numerica <- function(datos, variable.predecir, variable.comparar, ylab = "", 
+                                       xlab = "", main = paste("Densidad de la variable", variable.comparar, 'según', variable.predecir), col = NA){
+  gg_color <- function (n) {
+     hues <- seq(15, 375, length = n + 1)
+     hcl(h = hues, l = 65, c = 100)[1:n]
+  }
+  if(missing(variable.predecir) | !(variable.predecir %in% colnames(datos))){
+    stop("variable.predecir tiene que ser ingresada y ser un nombre de columna", call. = FALSE )
+  }
+  if(missing(variable.comparar) | !(variable.comparar %in% colnames(datos)) | !is.numeric(datos[,variable.comparar])){
+    stop("variable.comparar tiene que ser ingresada y ser un nombre de columna numérica", call. = FALSE )
+  }
+  
+  if(is.character(datos[,variable.predecir]) | is.factor(datos[,variable.predecir])){
+    if(length(col) == 0 || is.na(col)){
+      col <- gg_color(length(unique(datos[,variable.predecir])))
+    }else{
+      col <- rep(col,length(unique(datos[,variable.predecir])))
+    }
+    
+    ggplot(data = datos, aes_string(variable.comparar, fill = variable.predecir)) +
+      geom_density(alpha = .7, color = NA) +
+      scale_fill_manual(values = col) +
+      labs(title = main , y = ylab, x = xlab ,fill = variable.predecir) +
+      theme_minimal() +
+      theme(legend.position = 'bottom',
+            legend.title = element_blank(),
+            text = element_text(size = 15))
+    
+  }else{
+    stop("La variable a predecir tienen que ser de tipo factor o character", call. = FALSE )
+  }
+}
+
+poder.predictivo.categorica <- function(datos, variable.predecir, variable.comparar, ylab = "", 
+                                        xlab = "", main = paste("Densidad de la variable", variable.comparar, 'según', variable.predecir), col = NA) {
+  gg_color <- function (n) {
+     hues <- seq(15, 375, length = n + 1)
+     hcl(h = hues, l = 65, c = 100)[1:n]
+  }
+  if(missing(variable.predecir) | !(variable.predecir %in% colnames(datos))){
+    stop("variable.predecir tiene que ser ingresada y ser un nombre de columna", call. = FALSE )
+  }
+  if(missing(variable.comparar) | !(variable.comparar %in% colnames(datos)) | 
+     !(is.factor(datos[,variable.comparar]) | is.character(datos[,variable.comparar])) ){
+    stop("variable.comparar tiene que ser ingresada y ser un nombre de columna categórica", call. = FALSE )
+  }
+  
+  if(is.character(datos[,variable.predecir]) | is.factor(datos[,variable.predecir])){
+    if(length(col) == 0 || is.na(col)){
+      col <- gg_color(length(unique(datos[,variable.predecir])))
+    }else{
+      col <- rep(col,length(unique(datos[,variable.predecir])))
+    }
+    
+    datos2 <- datos %>%
+      dplyr::group_by_(variable.comparar, variable.predecir) %>%
+      dplyr::summarise(count = n())
+    
+    if(variable.comparar != variable.predecir){
+      datos2 <-   datos2 %>% dplyr::group_by_(variable.comparar)
+    }
+    datos2 <- datos2 %>% dplyr::mutate(prop = round(count/sum(count),4))
+  
+    ggplot(data = datos2, mapping = aes_string(x = variable.comparar, y = "prop", fill = variable.predecir)) +
+      geom_col(position = "fill") +
+      geom_text(aes(label = glue("{percent(prop)} ({count})")), position = position_stack(vjust = .5), color = "white") +
+      scale_y_continuous(label = percent) +
+      labs(y =  xlab, x  = ylab, title = main) +
+      scale_fill_manual(values = col, name = variable.predecir) +
+      theme(legend.position = "bottom")+
+      coord_flip()
+    
+  }else{
+    stop("La variable a predecir tienen que ser de tipo factor o character", call. = FALSE )
+  }
+}
+# Índices para matrices NxN
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", 
+                  "Precisión por categoría")
+  return(res)
+}
+```
+
+```{r pruiwuifrgegerdhfjhdessureg, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+datos<-read.csv("voces.csv",dec='.',header=T)
+str(datos)
+datos$genero <- factor(datos$genero,ordered = TRUE) ##ya es un factor es una linea repetitiva pero que ordena 
+```
+
+```{r pruiwuifrjdhfjhdessureg, echo=TRUE}
+equilibrio.variable.predecir(datos,"genero")
+```
+El problema esta visualmente equilibrado.
+
+```{r pueyfifijfjreec, echo=TRUE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  precision.positiva <- MC[2, 2]/(MC[2, 2] + MC[2, 1])
+  precision.negativa <- MC[1, 1]/(MC[1, 1] + MC[1, 2])
+  falsos.positivos <- 1 - precision.negativa
+  falsos.negativos <- 1 - precision.positiva
+  asertividad.positiva <- MC[2, 2]/(MC[1, 2] + MC[2, 2])
+  asertividad.negativa <- MC[1, 1]/(MC[1, 1] + MC[2, 1])
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria, precision.positiva = precision.positiva, precision.negativa=precision.negativa, 
+              falsos.positivos=falsos.positivos, falsos.negativos=falsos.negativos, asertividad.positiva=asertividad.positiva,
+              asertividad.negativa=asertividad.negativa)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", "Precisión por categoría", "Precision Positiva", "Precision Negativa",
+                  "Falsos Positivos", "Falsos Negativos", "Asertividad Positiva", "Asertividad Negativa")
+  return(res)
+}
+
+```
+
+2. Usando Maquinas de Soporte Vectorial, con todos los nucleos (kernel) (en traineR) con 80% de los datos para tabla aprendizaje y un 20% para la tabla testing genere modelos predictivos.
+
+
+```{r pueyfiressurec, echo=TRUE}
+library(traineR)
+```
+
+```{r pueyfifijfjec, echo=TRUE}
+library(traineR)
+
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+```
+
+```{r pueyffjressurec, echo=TRUE}
+modelo <- train.svm(genero ~ .,data = taprendizaje, kernel = "radial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifijfjrec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(genero ~ .,data = taprendizaje, kernel = "polynomial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pifijfjressurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(genero ~ .,data = taprendizaje, kernel = "sigmoid")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifssurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(genero ~ .,data = taprendizaje, kernel = "linear")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfjressurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(genero ~ .,data = taprendizaje, kernel = "radial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyssurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(genero ~ .,data = taprendizaje)
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+El mejor SVM para este ejercicio es con el default kernel, el radial. 
+
+3. Con la tabla de testing calcule la matriz de confusi´on, la precisi´on, la precisi´on positiva, la precisi´on negativa, los falsos positivos, los falsos negativos, la acertividad positiva y la acertividad negativa. Compare los resultados con los obtenidos en las tareas anteriores ¿Cual es mejor?
+
+```{r pueyfifisurec, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+El mejor SVM para este ejercicio es con el default kernel, el radial. Posee una precision bastante alta de 0.9873618. Para este ejercicio parece ser el metodo el que mejor se ha ajustado. El arbol de decisio con una precision global de 0.9462875, estuvo mas bajo. Ademas otras estimaciones tardan mas, es decir,  redes tarda mas entre mas cantidad de nodos, pero la precision global y el error global en los tres casos de redes se mantienen entre 97 y 98%, y 2% y 3%, respectivamente. De los seis modelos (svm, arbol, 3 redes, kvecinos) tomando precision global como criterio principal y revisando un poco la precision de categorias, SVM radial en este caso tiene la precision mas alta , pero se denota que no existe diferencia significativa, ya que siguiendo la finalidad de este ejercicio se realizan distintas simulaciones para comparar. En la mayoria de los casos la precision de la red neuronal especialmente la de 4 nodos se acerca a la que mejor estimacion de svm radial, pero todas las estimaciones usando k vecinos y redes neuronales con distinta cantidad de nodos, han dado precisiones de entre 96,68% y 98,26% como ocurrio en el de 4 nodos contra 15 nodos, es decir, no se notan diferencias significativas. Los svm con otros kernels tambien han sido bastante acertados, de hecho, puede ser la muestra la que influya en la decision.
+
+
+Pregunta 2: [25 puntos] En esta pregunta utiliza los datos (tumores.csv). Se trata de un conjunto de datos de caracter´ısticas del tumor cerebral que incluye cinco variables de primer orden y ocho de textura y cuatro par´ametros de evaluaci´on de la calidad con el nivel objetivo. La variables son: Media, Varianza, Desviaci´on est´andar, Asimetr´ıa, Kurtosis, Contraste, Energ´ıa, ASM (segundo momento angular), Entrop´ıa, Homogeneidad, Disimilitud, Correlaci´on, Grosor, PSNR (Pico de la relaci´on se˜nal-ruido), SSIM (´Indice de Similitud Estructurada), MSE (Mean Square Error), DC (Coeficiente de Dados) y la variable a predecir tipo (1 = Tumor, 0 = No-Tumor).
+
+Realice lo siguiente:
+
+1. Cargue la tabla de datos tumores.csv en R y genere en R usando la funci´on createDataPartition(...) del paquete caret la tabla de testing con una 25 % de los datos y con el resto de los datos genere una tabla de aprendizaje.
+
+```{r pruryjfhjel, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data1<-read.csv("tumores.csv",dec='.',header=T)
+head(data1)
+```
+
+```{r presuweyruueyf8ryeioremaa, echo=TRUE}
+library(caret)
+data1$tipo <- factor(data1$tipo,ordered = TRUE)
+```
+
+```{r preseuywruuremaa, echo=TRUE}
+str(data1)
+```
+
+```{r pruiwuifrgegerhdessureg, echo=TRUE}
+equilibrio.variable.predecir(data1,"tipo")
+```
+
+Es un problema desbalanceado
+
+```{r pressuueyremaa, echo=TRUE}
+intrain <- createDataPartition(
+  y = data1$tipo,
+  p = .75,
+  list = FALSE
+)
+str(intrain)
+```
+
+```{r prywteburemaa, echo=TRUE}
+taprendizaje <- data1[ intrain,]
+ttesting  <- data1[-intrain,]
+
+nrow(taprendizaje)
+nrow(ttesting)
+```
+
+
+2. Usando M´aquinas de Soporte Vectorial, con todos los n´ucleos (kernel) (en traineR) genere un modelos predictivos para la tabla de aprendizaje.
+
+```{r pueyfific, echo=TRUE}
+modelo <- train.svm(tipo ~ .,data = taprendizaje, kernel = "radial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfirec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(tipo ~ .,data = taprendizaje, kernel = "linear")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueysurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(tipo ~ .,data = taprendizaje, kernel = "sigmoid")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifijfjc, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(tipo ~ .,data = taprendizaje, kernel = "polynomial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfurec, echo=TRUE}
+modelo <- train.svm(tipo ~ .,data = taprendizaje)
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+Ninguno de los kernels esta logrando estimar correctamente los casos de no tumor.Todos los kernels dan la misma matrix de confusion, excepto el linear que permite identificar ambos casos y tiene la precision global mas alta con 0.9716981, pero una asertividad negativa aun baja de 0.7777778.
+
+
+3. Construya una tabla para los ´ındices anteriores que permita comparar el resultado de Maquinas de Soporte Vectorial con respecto a los m´etodos generados en las tareas anteriores ¿Cu´al m´etodo es mejor?
+
+```{r preujgefek, echo=TRUE}
+x <- data.frame("Modelo" = c("Modelo k-vecinos", "Modelo kvecinos.traineR", "Modelo Red 2 nodos", "Modelo Arbol Decision", "SVM radial", "SVM Linear", "SVM Sigmoid", "SVM polynomial"), "Precision Global" = c(0.9559748, 0.9402516, 0.9497, 0.9717, 0.9245283, 0.9748428, 0.9245283, 0.9245283), "Error Global" = c(0.04402516, 0.05974843, 0.0503, 0.0283, 0.0754717, 0.02515723, 0.0754717,0.0754717))
+x
+```
+
+Ninguno de los kernels esta logrando estimar correctamente los casos de no tumor.Todos los kernels dan la misma matrix de confusion, excepto el linear que permite identificar ambos casos y tiene la precision global mas alta con 0.9716981, pero una asertividad negativa aun baja de 0.7777778.Comparando de forma sencillo los modelos mas acertados en las tareas anteriores, ya que se han dado varios intentos con resultados de toda clase. El SVM linear parece ser en este ejercicio el que mejor esta asimilando los datos para explicar la variabilidad del caso. Tiene una precision global bastante alta. De hecho, todos los casos probables de no tumor los identifica. Aun asi debe indicarse que se trata con tumores, lo implica que se necesita replantear el modelo, dado que se trata de tumores, lo que es mas importante, es probable que se requier un tamano de muestra mas grande para arrojar datos veridicos ya que en este caso los modelos no estan leyendo completamente bien los casos. En el caso de todos los modelos la precision por categoria ha sido especialmente debil al no detectar los no tumores, esto se explica probablemente por la falta de muestra en estos casos. 
+
+
+Pregunta 3: [25 puntos] En este ejercicio vamos a predecir n´umeros escritos a mano (Hand Written Digit Recognition), la tabla de de datos est´a en el archivo ZipData 2020.csv. En la figura siguiente se ilustran los datos
+
+Para esto realice lo siguiente (podr´ıa tomar varios minutos los calculos):
+
+1. Cargue la tabla de datos ZipData 2020.csv en R.
+
+```{r pressrywerfefiyriouioqfhklfjureo, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+data2<-read.csv("ZipData_2020.csv",sep=";",dec='.',header=T)
+head(data2)
+```
+
+```{r preseewuifefferqfwuiyfhoruioweusureo, echo=TRUE}
+str(data2)
+```
+
+```{r pruiwuifrfreqgegerghjhsjdhfjhdessureg, echo=TRUE}
+equilibrio.variable.predecir(data2,"Numero")
+```
+
+Es un problema desequilibrado.
+
+2. Use el m´etodo de M´aquinas de Soporte Vectorial con el n´ucleo y los par´ametros que usted considere m´as conveniente para generar un modelo predictivo para la tabla ZipData 2020.csv usando el 80 % de los datos para la tabla aprendizaje y un 20 % para la tabla testing, luego calcule para los datos de testing la matriz de confusi´on, la precisi´on global y la precisi´on para cada una de las categor´ıas. ¿Son buenos los resultados? Explique.
+
+```{r prrweiayiouwbtbrrbureg, echo=TRUE}
+library(traineR)
+muestra <- sample(1:nrow(data2),floor(nrow(data2)*0.20))
+ttesting <- data2[muestra,]
+taprendizaje <- data2[-muestra,]
+```
+
+```{r pueyfifijfjregfhrssurec, echo=TRUE}
+modelo <- train.svm(Numero ~ .,data = taprendizaje, kernel = "radial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifijfjrwhwhressurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(Numero ~ .,data = taprendizaje, kernel = "polynomial")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifwhtwrijfjressurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(Numero ~ .,data = taprendizaje, kernel = "sigmoid")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifijfjrehhhhhssurec, echo=TRUE}
+library(traineR)
+
+modelo <- train.svm(Numero ~ .,data = taprendizaje, kernel = "linear")
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifigggggggggjfjressurec, echo=TRUE}
+modelo <- train.svm(Numero ~ .,data = taprendizaje)
+prediccion <- predict(modelo, ttesting , type = "class")
+MC <- confusion.matrix(ttesting, prediccion)
+indices.general(MC)
+```
+
+```{r pueyfggggggggifijfjressurec, echo=TRUE}
+library(class)
+library(e1071)
+```
+
+```{r pueffffffffffffffyfifijfjressurec, echo=TRUE}
+modelo <- svm(Numero~., data = taprendizaje)
+modelo
+```
+
+```{r pueyfifijffffffffffjressurec, echo=TRUE}
+prediccion <- predict(modelo,ttesting)
+MC<-table(ttesting[,1],prediccion)
+indices.general(MC)
+```
+
+```{r pueyfiffffffffffijfjressurec, echo=TRUE}
+modelo <- svm(Numero~., data = taprendizaje, kernel="radial")
+prediccion <- predict(modelo,ttesting)
+MC<-table(ttesting[,1],prediccion)
+indices.general(MC)
+```
+
+
+```{r wuefgiuf, echo=TRUE}
+modelo <- svm(Numero~., data = taprendizaje, kernel="linear")
+prediccion <- predict(modelo,ttesting)
+MC<-table(ttesting[,1],prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifijfjressgqqgurec, echo=TRUE}
+modelo <- svm(Numero~., data = taprendizaje, kernel="polynomial")
+prediccion <- predict(modelo,ttesting)
+MC<-table(ttesting[,1],prediccion)
+indices.general(MC)
+```
+
+```{r pueyfifijfjressghtrtrurec, echo=TRUE}
+modelo <- svm(Numero~., data = taprendizaje, kernel="sigmoid")
+prediccion <- predict(modelo,ttesting)
+MC<-table(ttesting[,1],prediccion)
+indices.general(MC)
+```
+
+3. Compare los resultados con los obtenidos en las tareas anteriores.
+
+Con una precision global de 0.964497 el SVM radial es el que mejor estima la variabilidad del modelo la peor estimacion de svm es con sigmoid una precision global 0.9117805. Los resultados como seria de esperar son iguales aplicando algoritmo SVM y traineR. A diferencia de los metodos de estimacion de las demas tareas el SVM ademas de tener una precision global alta, tambien tiene una precision por categoria bastante elevada en todos los numeros. Es decir kvecinos tambien tuvo una precision global alta pero no es preciso con todos los numeros por igual. Debe senalarse que de los modelos anteriores el de arboles de decision tiene peor desempeno. A pesar de ello, puede senalarse la red neuronal tanto nnet como neuralnet tardan mucho en procesar los datos, mucho mas que en el caso de los kvecinos, por lo que, para el uso de equipo con baja capacidad de procesamiento puede resultar mas optimo SVM o incluso kvencinos. En el caso de los kvecinos se obtuvo precision global de 0.9585799, aun con kvecinos es superior que con la aproximacion de redes nnet (0.8682087).
+
+
+Pregunta 4: [25 puntos] Suponga que se tiene la siguiente tabla de datos:
+
+1. Dibuje con colores los puntos de ambas clases en R3
+
+```{r pueyfghrhgrhrfjressurec, echo=TRUE}
+library ( plotly )
+datos <- data.frame(x = c(1, 1, 1, 3, 1, 3, 1, 3, 1), y = c(0, 0, 1, 1, 1, 2, 2, 2, 1), z = c(1, 2, 2, 4, 3, 3, 1, 1, 0), clase = c(" Rojo ", " Rojo ", " Rojo ", " Rojo ", " Rojo ", " Azul "," Azul ", " Azul ", " Azul "))
+
+plot_ly (data = datos) %>% add_trace (x = ~x, y = ~y, z = ~z, color = ~clase, colors = c("#0C4B8E", "#BF382A"), mode = "markers ", type = "scatter3d")
+```
+
+2. Dibuje el hiperplano ´optimo de separaci´on e indique la ecuaci´on de dicho hiperplano de la forma ax+by +cz +d = 01 . Nota: Se debe observar con detenimiento los puntos de ambas clases para encontrar los vectores de soporte de cada margen y trazar con estos puntos los hiperplanos de los m´argenes luego trazar el hiperplano de soporte justo en el centro.
+
+```{r fgeiqufgqwedgqwnhrdhrhMvnnv, echo=TRUE}
+getwd()
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+```
+
+```{r fgeiquffsdzzgedgqwnMvnnv, echo=TRUE}
+library ( plotly )
+observaciones <- data.frame(x = c(1, 1, 1, 3, 1, 3, 1, 3, 1), 
+                            y = c(0, 0, 1, 1, 1, 2, 2, 2, 1), 
+                            z = c(1, 2, 2, 4,3, 3, 1, 1, 0), 
+                            clase = c(" Rojo ", " Rojo ", " Rojo ", " Rojo ", " Rojo ", " Azul "," Azul ", " Azul", " Azul "))
+observaciones$clase <- as.factor(observaciones$clase)
+                      
+ggplot() +
+  geom_point(data = observaciones, aes(x = x, y = y, color = clase), size = 4) +
+  theme_bw() +
+  labs(title = "Posibles hiperplanos de separación") +
+  theme( legend.position = "none",
+  plot.title = element_text(hjust = 0.5, size = 11))
+```
+ecuacion de hiperplano = x+y+0.5z+0.5=0
+
+
+3. Escriba la regla de clasificaci´on para el clasificador con margen m´aximo. Debe ser algo
+como lo siguiente: w = (w1, w2, w3) se clasifica como Rojo si ax + by + cz + d > 0 y otro
+caso se clasifica como Azul.
+
+
+
+```{r pueghrhgrhrfjrrghadhaessurec, echo=TRUE}
+x1 <- c(1, 1, 1, 3, 1, 3, 1, 3, 1)
+x2 <- c(0, 0, 1, 1, 1, 2, 2, 2, 1)
+y <- c(" Red ", " Red ", " Red ", " Red ", " Red ", " Blue "," Blue ", " Blue ", " Blue ")
+m1 <- (4-2)/(4-2) # m = (y2-y1)/(x2-x1)
+b1 <- 4-1*4 # b = y -mx
+m2 <- (3-1)/(4-2)
+b2 <- 3-1*4
+
+
+library(plotrix)
+bbdd <- data.frame(x1,x2,y)
+plot(x1,x2,xlim=c(0,8),ylim=c(0,8),col=c(y))
+legend("topleft", 
+       c("h(x)=x+0, vectores de soporte: (2,2) y  (4,4)",
+         "Hiperplano no óptimo: x1-x2-0.25=0",
+         "Hiperplano: x1-x2-0.5 = 0",
+         "g(x)=x-1, vectores de soporte: (2,1) y (4,3"), cex=0.7, col=c("red","green", "black","blue"), lty=c(2,1,1,2))
+abline (b1,m1,col="red",lty=2)
+abline (b2,m2,col="blue",lty=2)
+abline (-0.5,1)
+abline (-0.25,1,col="green")
+arrows(6.3,4,6,5,length=0.1)
+arrows(5.5,7,5.8,5.8,length=0.1)
+legend(5.5,3.8,"margen",cex=0.7,bty="n")
+legend("bottomright","Círculos: vectores de soporte",cex=0.6)
+draw.circle(2,2,0.25)
+draw.circle(4,4,0.25)
+draw.circle(2,1,0.25)
+draw.circle(4,3,0.25)
+
+```
+
+4. Indique el margen para el hiperplano ´optimo y los vectores de soporte.
+
+hiperplano optimo = x-y-0.5z-0.5=0
+vectores de soporte = (2,2), (4,4) y (2,2)
+vectores de soporte = (2,1), (4,3) y (2,1)
+
+5. Explique por qu´e un ligero movimiento de la octava observaci´on no afectar´ıa el hiperplano
+de margen m´aximo.
+
+Esta octava observacion se encuentra bastante separada y alejada de la linea de separacion caracteristica del SVM por lo que pequenos cambios no deberian afectar la distincion entre variables.
+
+6. Dibuje un hiperplano que no es el hiperplano ´optimo de separaci´on y proporcione la
+ecuaci´on para este hiperplano.
+
+```{r pueyfifijfghrhgrwhdiquwhhrfjressurec, echo=TRUE}
+x1 <- c(1, 1, 1, 3, 2, 1, 1, 3, 1)
+x2 <- c(1, 0, 1, 2, 1, 0, 2, 2, 1)
+y <- c(" Red ", " Red ", " Red ", " Red ", " Red ", " Blue "," Blue ", " Blue ", " Blue ")
+m1 <- (4-2)/(4-2) # m = (y2-y1)/(x2-x1)
+b1 <- 4-1*4 # b = y -mx
+m2 <- (3-1)/(4-2)
+b2 <- 3-1*4
+
+
+library(plotrix)
+bbdd <- data.frame(x1,x2,y)
+plot(x1,x2,xlim=c(0,8),ylim=c(0,8),col=c(y))
+legend("topleft", 
+       c("h(x)=x+0, vectores de soporte: (2,2) y  (4,4)",
+         "Hiperplano no óptimo: x1-x2-0.25=0",
+         "Hiperplano: x1-x2-0.5 = 0",
+         "g(x)=x-1, vectores de soporte: (2,1) y (4,3"), cex=0.7, col=c("red","green", "black","blue"), lty=c(2,1,1,2))
+abline (b1,m1,col="red",lty=2)
+abline (b2,m2,col="blue",lty=2)
+abline (-0.5,1)
+abline (-0.25,1,col="green")
+arrows(6.3,4,6,5,length=0.1)
+arrows(5.5,7,5.8,5.8,length=0.1)
+legend(5.5,3.8,"margen",cex=0.7,bty="n")
+legend("bottomright","Círculos: vectores de soporte",cex=0.6)
+draw.circle(2,2,0.25)
+draw.circle(4,4,0.25)
+draw.circle(2,1,0.25)
+draw.circle(4,3,0.25)
+
+```
+
+Aqui se denota dificultad para separar los casos de hecho se traslapan no hay hiperplano de separaacion
+Ecuacion hiperplano = x1-x2-0.5=0
+Ecuacion no optimo = x1 - x2-0.25=0
+
+7. Dibuje un hiperplano de separaci´on pero que no es el hiperplano ´optimo de separaci´on, y
+escriba la ecuaci´on correspondiente.
+
+```{r pueyfifijfghrhgrec, echo=TRUE}
+bbdd <- data.frame(x1,x2,y)
+plot(x1,x2,xlim=c(0,8),ylim=c(0,8),col=c(y))
+abline (b1,m1,col="red",lty=2)
+abline (b2,m2,col="blue",lty=2)
+abline (-0.5,1)
+points(2,7,col="blue")
+legend(0,7,"separable",cex=0.6,bty="n")
+
+
+```
+
+(2,7 resulta no separable)
+Hiperplano: x1-x2-2.7 = 0
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,749 @@
+---
+title: "Tarea 3_Ricardo Zamora Mennigke_Mineria de Datos I"
+author: "Ricardo Zamora Mennigke"
+date: "4/17/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error = TRUE)
+```
+
+
+
+Ejercicio 1: [25 puntos] En este ejercicio usaremos los datos (voces.csv). Se trata de un problema de reconocimiento de genero mediante el analisis de la voz y el habla. Esta base de datos fue creada para identificar una voz como masculina o femenina, bas´andose en las propiedades ac´usticas de la voz y el habla. El conjunto de datos consta de 3.168 muestras de voz grabadas, recogidas de hablantes masculinos y femeninos. Las muestras de voz se preprocesan mediante an´alisis ac´ustico en R, utilizando los paquetes de ondas marinas y de sinton´ıa de R, con un rango de frecuencia analizada de 0hz-280hz (rango vocal humano).
+
+1. Cargue la tabla de datos voces.csv en R. No olvide recodificar la variable a predecir como categorica.
+
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(scales)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+
+```{r pruiwuifhjhsjdhfjhdessureg, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+datos<-read.csv("voces.csv",dec='.',header=T)
+str(datos)
+datos$genero <- factor(datos$genero,ordered = TRUE) ##ya es un factor es una linea repetitiva pero que ordena 
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+2. Usando Redes Neuronales, con nnet del paquete traineR y con 80 % de los datos para tabla aprendizaje y un 20 % para la tabla testing, genere un modelo predictivo para la tabla de aprendizaje, usando 4, 15 y 20 nodos en la capa oculta ¿Qu´e pasa en cada uno de los casos? Lo anterior con un n´umero m´aximo de iteraciones igual a 1000, recuerde adaptar el n´umero m´aximo de pesos MaxNWts.
+
+
+```{r preeyfiuwyiufhfhhfkssureg, echo=TRUE}
+library(nnet)
+library(traineR)
+```
+
+
+```{r preeufioufwoieujssureg, echo=TRUE}
+##Para 4 nodos
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.nnet(formula = genero~., data = taprendizaje, size = 4, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressuregcfikweyfhifio, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+```{r pressuriefwuioufoiwfjjfeg, echo=TRUE}
+##Para 15 nodos
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.nnet(formula = genero~., data = taprendizaje, size = 15, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressuwyduiqydiuhhvureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+```{r pressurdsfhfefiouwifueg, echo=TRUE}
+##Para 20 nodos
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.nnet(formula = genero~., data = taprendizaje, size = 20, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r prhdfhfurhhgessureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+Resulta curioso notar que por los resultaods no parece afectar significativamente la cantidad de nodos. La estimacion de las redes tarda mas entre mas cantidad de nodos. La precision global y el error global en los tres casos se mantienen entre 97 y 98%, y 2% y 3%, respectivamente.Es importante notar que entre mas nodos la prediccion no mejora es vital elegir valores de modo que el número de nodos no exceda el número de predictores continuos además del número total de categorías entre todos los predictores categóricos este afecta significativamente no solo la funcionalidad del nodo, sino que tambien la capacidad de prediccion de la misma. Lo mismo ocurre con la matriz de confusion y la precision por categoria que no resultan significativamente distintas.
+
+
+3. Repita los ejercicios anteriores usando neuralnet del paquete traineR con 4 capas ocultas, es decir, use hidden = c(k1, k2, k3, k4) (determine usted el n´umero adecuado para k1, k2, k3 y para k4. ¿Mejoran los resultados?
+
+```{r pressuuyuyuyhhvhreg, echo=TRUE}
+library(dummies)
+library(neuralnet)
+library(car) 
+library(traineR)
+```
+
+```{r pressuregewiugugwejkgfjwhg, echo=TRUE}
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.neuralnet(formula = genero ~ . ,data = taprendizaje, hidden = c(8, 6, 4, 3), linear.output = FALSE,threshold = 0.1, stepmax = 1e+06)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pfoiuofpiressureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+Se definio k1=8, k2=6, k3=4, k4=3, la estimacion se vuelve mas profunda y por lo tanto, tarda mas en determinar, de hecho se tienen que seleccionar k's bajos para no generar demasiados nodos, de lo contrario la estimacion falla, pero cueriosamente al probar unas cuantas combinaciones no se obtuvo una mayor precision y menor error en la estimacion.
+
+
+4. Con la tabla de testing calcule la matriz de confusi´on, la precision, la precision positiva, la precisi´on negativa, los falsos positivos, los falsos negativos, la acertividad positiva y la acertividad negativa para al es mejor?
+
+```{r pueyfiueyfiwfijfjressurec, echo=TRUE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  precision.positiva <- MC[2, 2]/(MC[2, 2] + MC[2, 1])
+  precision.negativa <- MC[1, 1]/(MC[1, 1] + MC[1, 2])
+  falsos.positivos <- 1 - precision.negativa
+  falsos.negativos <- 1 - precision.positiva
+  asertividad.positiva <- MC[2, 2]/(MC[1, 2] + MC[2, 2])
+  asertividad.negativa <- MC[1, 1]/(MC[1, 1] + MC[2, 1])
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria, precision.positiva = precision.positiva, precision.negativa=precision.negativa, 
+              falsos.positivos=falsos.positivos, falsos.negativos=falsos.negativos, asertividad.positiva=asertividad.positiva,
+              asertividad.negativa=asertividad.negativa)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", "Precisión por categoría", "Precision Positiva", "Precision Negativa",
+                  "Falsos Positivos", "Falsos Negativos", "Asertividad Positiva", "Asertividad Negativa")
+  return(res)
+}
+
+```
+
+```{r pressurhrfiohifjjgjgojeeg, echo=TRUE}
+##Para 4 nodos
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.nnet(formula = genero~., data = taprendizaje, size = 4, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressfhuiehyfierfiojureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+```{r preufuiweryfioussureg, echo=TRUE}
+##Para 15 nodos
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.nnet(formula = genero~., data = taprendizaje, size = 15, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r presfveriofuoiugeugsureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+```{r presufiufhuihfsureg, echo=TRUE}
+##Para 20 nodos
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.nnet(formula = genero~., data = taprendizaje, size = 20, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r preiefhioefyheuighssureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+```{r pfgeiuefhijgressureg, echo=TRUE}
+##neuralnet
+muestra <- sample(1:nrow(datos),floor(nrow(datos)*0.20))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+
+modelo <- train.neuralnet(formula = genero ~ . ,data = taprendizaje, hidden = c(8, 6, 4, 3), linear.output = FALSE,threshold = 0.1, stepmax = 1e+06)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressuiewfuoihweuifhfreg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+De los cuatro modelos tomando precision global como criterio principal, la red neuronal con 4 nodos en este caso tiene la precision mas alta incluso tomando la tarea de la semana pasada, pero se denota que no existe diferencia significativa, ya que siguiendo la finalidad de este ejercicio se realizan distintas simulaciones para comparar. En la mayoria de los casos la precision de la red neuronal de 4 nodos es la que mejor estimacion ha dado, pero todas las estimaciones usando k vecinos y redes neuronales con distinta cantidad de nodos, han dado precisiones de entre 96,68% y 98,26% como ocurrio en el de 4 nodos contra 15 nodos, es decir, no se notan diferencias significativas. Para este ejercicio resulta optima una menor cantidad de nodos debido al tipo de maquina empleada y que aunque parezcan muchos datos para una red neuronal muy densa no resulta optima tener tan pocos datos.
+
+Datos de matriz de confusion k-cercanos de la semana pasada:
+
+Matriz de Confusión
+           prediccion
+            Femenino Masculino
+  Femenino       306        11
+  Masculino        6       310
+
+Precisión Global
+[1] 0.9731438
+
+Error Global
+[1] 0.02685624
+
+Precisión por categoría
+ Femenino Masculino 
+0.9652997 0.9810127 
+
+Precision Positiva
+[1] 0.9810127
+
+Precision Negativa
+[1] 0.9652997
+
+Falsos Positivos
+[1] 0.03470032
+
+Falsos Negativos
+[1] 0.01898734
+
+Asertividad Positiva
+[1] 0.9657321
+
+Asertividad Negativa
+[1] 0.9807692
+
+
+
+
+
+
+
+5. Ejecute nuevamente el metodo de K vecinos mas cercanos con los mismos parametros usados en la tarea anterior, pero esta vez con el paquete traineR. Compare los resultados con los obtenidos en los ejercicios anteriores. ¿Cual es mejor?
+
+```{r prehfeueiwhfuhwfjfissureiaaaabftgutiua, echo=TRUE}
+library(traineR)
+modelo<-train.knn(genero~.,data=datos,kmax=20, kernel = "optimal") 
+modelo 
+```
+
+```{r prueywfhwvfvhivjirjvessufgergrerema, echo=TRUE}
+tam<-dim(datos)
+n<-tam[1]
+n
+```
+
+```{r preyerytwhfguwhguejijssurehfioyhwofiyoemaa, echo=TRUE}
+muestra <- sample(1:n,floor(n*0.2))
+ttesting <- datos[muestra,]
+taprendizaje <- datos[-muestra,]
+# train.kknn escoje el k usando leave-one-out crossvalidation
+modelo<-train.knn(genero~.,data=taprendizaje,kmax=floor(sqrt(n)))
+modelo
+```
+
+```{r presiufieoruehiughreghegsureg, echo=TRUE}
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r presuweriyieuhfhfigjijgsureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+
+#Precisión Global = 0.9731438
+#Precisión por categoría:  Femenino = 0.9652997 / Masculino = 0.9810127
+
+
+Resulta curioso que con el paquete de traineR la estimacion no resulta tan precisa como con kknn en el ejercicio anterior, probablemente por ser el de la semana pasada un programa y algoritmo generado para este fin especifico, tambien pudo afectar el diferente kernel de estimacion base para los datos.
+
+
+Ejercicio 2: [25 puntos] Esta pregunta utiliza los datos (tumores.csv). Se trata de un conjunto de datos de caracter´ısticas del tumor cerebral que incluye cinco variables de primer orden y ocho de textura y cuatro par´ametros de evaluaci´on de la calidad con el nivel objetivo. La variables son: Media, Varianza, Desviaci´on est´andar, Asimetr´ıa, Kurtosis, Contraste, Energ´ıa, ASM (segundo momento angular), Entrop´ıa, Homogeneidad, Disimilitud, Correlaci´on, Grosor, PSNR (Pico de la relaci´on se˜nal-ruido), SSIM (´Indice de Similitud Estructurada), MSE (Mean Square Error), DC (Coeficiente de Dados) y la variable a predecir tipo (1 = Tumor, 0 = No-Tumor).
+Realice lo siguiente:
+
+1. Cargue la tabla de datos tumores.csv en R y genere en R usando la funcion createDataPartition(...) del paquete caret la tabla de testing con una 25 % de los datos y con el resto de los datos genere una tabla de aprendizaje. Investigue c´omo se hace la separaci´on en training-testing con el paquete caret ¿Cu´al es la ventaja respecto a usar sample?
+
+```{r pruryjfhjhfhvbjjhessurel, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase2")
+data1<-read.csv("tumores.csv",dec='.',header=T)
+```
+
+```{r preyrufhjkdhfjnvnbssurel, echo=TRUE}
+head(data1)
+```
+
+
+
+```{r presuweruryeryryueysuueyf8ryeioremaa, echo=TRUE}
+library(caret)
+```
+
+```{r preseuywruiywryrysuueyf8ryeioremaa, echo=TRUE}
+str(data1)
+```
+
+```{r pressuueyf8ryeiertoeitiuttutiutoremaa, echo=TRUE}
+intrain <- createDataPartition(
+  y = data1$tipo,
+  p = .75,
+  list = FALSE
+)
+str(intrain)
+```
+
+```{r prywtebdfngmgessuueyf8ryeioremaa, echo=TRUE}
+training <- data1[ intrain,]
+testing  <- data1[-intrain,]
+
+nrow(training)
+nrow(testing)
+```
+
+Caret resulta mejor que sample, primero porque genera una funcion de uso mas simple que sample, las series de particiones se generan simplemente usando createDataPartition. caret tambien tiene funciones de resample, folds y timeslices y groupfold. Resulta simple usar especificamente la función createDataPartition que puede ser empleada para crear divisiones equilibradas de los datos. Si el argumento y para esta función es un factor, el muestreo aleatorio ocurre dentro de cada clase y debe preservar la distribución general de la clase de los datos. 
+
+2. Use el metodo de K vecinos mas cercanos en R para generar un modelo predictivo para la tabla tumores.csv, pero esta vez con el paquete traineR. No olvide recodificar, desde R, la variable a predecir como categorica. Use el n´ucleo que mejor le dio en la tarea anterior.
+
+```{r presseritioeryttyureg, echo=TRUE}
+data1$tipo <- factor(data1$tipo,ordered = TRUE) ##ya es un factor es una linea repetitiva pero que ordena 
+```
+
+```{r preureyiretyertyssureiaaaabftgutiua, echo=TRUE}
+library(traineR)
+modelo<-train.knn(tipo~.,data=data1,kmax=20, kernel = "optimal") 
+modelo 
+```
+
+```{r presefweffdsfsufgergrerema, echo=TRUE}
+tam<-dim(data1)
+n<-tam[1]
+n
+```
+
+```{r preuieryffssurehfioyhwofiyoemaa, echo=TRUE}
+muestra <- sample(1:n,floor(n*0.25))
+ttesting <- data1[muestra,]
+taprendizaje <- data1[-muestra,]
+# train.kknn escoje el k usando leave-one-out crossvalidation
+modelo<-train.knn(tipo~.,data=taprendizaje,kmax=floor(sqrt(n)))
+modelo
+```
+
+```{r pressuuefguiegfrehfioyhwofiyoemaa, echo=TRUE}
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r prewfuyeuifyuifhyfessureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+3. Usando Redes Neuronales (nnet) con el paquete traineR genere un modelo predictivo para la tabla de aprendizaje usando 2, 4 y 20 capas ocultas ¿Que pasa en cada uno de los casos? Lo anterior con un numero maximo de iteraciones igual a 1000 (recuerde adaptar el numero maximo de pesos MaxNWts.
+
+```{r prewqugyuiwegfuigwfssureg, echo=TRUE}
+library(nnet)
+library(traineR)
+```
+
+
+```{r pressdwudguiqwgduiqdgureg, echo=TRUE}
+##Para 2 nodos
+muestra <- sample(1:nrow(data1),floor(nrow(data1)*0.25))
+ttesting <- data1[muestra,]
+taprendizaje <- data1[-muestra,]
+
+modelo <- train.nnet(formula = tipo~., data = taprendizaje, size = 2, MaxNWts = 10000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressurereghareeahergerg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+general.indexes(mc = MC)
+```
+
+```{r pressureuiweyriuuiqwyriwg, echo=TRUE}
+##Para 4 nodos
+muestra <- sample(1:nrow(data1),floor(nrow(data1)*0.25))
+ttesting <- data1[muestra,]
+taprendizaje <- data1[-muestra,]
+
+modelo <- train.nnet(formula = tipo~., data = taprendizaje, size = 4, MaxNWts = 10000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressurefeyfiuyefiuyeuiyfifyeiyfg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+```{r pruegfiugwfgfuwguessureg, echo=TRUE}
+##Para 20 nodos
+muestra <- sample(1:nrow(data1),floor(nrow(data1)*0.25))
+ttesting <- data1[muestra,]
+taprendizaje <- data1[-muestra,]
+
+modelo <- train.nnet(formula = tipo~., data = taprendizaje, size = 20, MaxNWts = 10000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+##Despues de alrededor de 35 minutos se forzo a la detencion de la estimacion, se paso MaxNWts = 100000 a MaxNWts = 10000, para evitar la estimacion y que R se pegara.
+```{r pressurieoowayeiufyaleg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+4. Repita los ejercicios anteriores usando neuralnet desde el paquete traineR con 3 capas ocultas, es decir, use hidden = c(k1, k2, k3) (determine usted el n´umero adecuado
+para k1, k2 y para k3.
+
+```{r pressrueiyhvnvjnbnreg, echo=TRUE}
+library(dummies)
+library(neuralnet)
+library(car) 
+library(traineR)
+```
+
+```{r pressueuwewuifgifvreg, echo=TRUE}
+muestra <- sample(1:nrow(data1),floor(nrow(data1)*0.25))
+ttesting <- data1[muestra,]
+taprendizaje <- data1[-muestra,]
+
+modelo <- train.neuralnet(formula = tipo ~ . ,data = taprendizaje, hidden = c(6, 4, 3), linear.output = FALSE,threshold = 0.1, stepmax = 1e+06)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressureopriprpeoireeg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+general.indexes(mc = MC)
+```
+
+Se definio k2=6, k3=4, k4=3, la estimacion se vuelve mas profunda y por lo tanto, tarda mas en determinar, de hecho se tienen que seleccionar k's bajos para no generar demasiados nodos, de lo contrario la estimacion falla, pero cueriosamente al probar unas cuantas combinaciones no se obtuvo una mayor precision y menor error en la estimacion.
+
+5. Compare todos los resultados de los ejercicios anteriores. ¿Cual es mejor?
+
+Dado que este ejemplo no conto con muchas observaciones y como se indico un 25% debia ser para testing las redes neuronales tuvieron muchos problemas para ejecutarse, de hecho, nnet con 20 capas ocultas fallo, es decir, tomo demasiado tiempo hasta que se cerro el programa.tanto el nnet como el neuralnet, con muchas capas ocultas o nodos, estan fallando al identificar el training set, es decir, arrojan muchos datos confundidos o incluso segun la matriz de confusion, no estan prediciendo los casos de tumor del todo. 
+En este caso, la mejor estimacion la arrojo la red neuronal de 2 capas con una precision de 0,9528, el k-nearest de TraineR con una precision de 0,9434, tuvo junto al de 2 capas muchos casos confundidos.
+Esto implica que se necesita replantear el modelo, dado que se trata de tumores, lo que es mas importante, es probable que se requier un tamano de muestra mas grande para arrojar datos veridicos ya que en este caso los modelos no estan leyendo bien los casos, aunque tambien debe considerarse para esto un equipo mas sofisticado ya que generalmente estas estimaciones requieren procesadores mas avanzados.
+
+
+Ejercicio 3: [25 puntos] En este ejercicio vamos a predecir n´umeros escritos a mano (Hand Written Digit Recognition), la tabla de de datos est´a en el archivo ZipData 2020.csv. En la figura siguiente se ilustran los datos:
+
+```{r pressryweiyrioyitrouioqfhklfjureo, echo=TRUE}
+setwd("C:/Users/rzamoram/Documents/Machine Learning/Mineria de Datos I/Clase3")
+data2<-read.csv("ZipData_2020.csv",sep=";",dec='.',header=T)
+head(data2)
+```
+
+```{r preseewuifewuiyfhoiwfuhwioruioweusureo, echo=TRUE}
+str(data2)
+```
+
+2. Use el metodo de Redes Neuronales con el metodo y los parametros que usted considere mas conveniente para generar un modelo predictivo para la tabla ZipData 2020.csv usando el 80 % de los datos para la tabla aprendizaje y un 20 % para la tabla testing, luego calcule para los datos de testing la matriz de confusi´on, la precisi´on global y la precisi´on para cada una de las categor´ıas. ¿Son buenos los resultados? Explique.
+
+Si realizan 4 simulaciones con nnet 3 casos: 8, 5 y 2 capas ocultas, y una neuralnet, para definir el mejor de los casos
+
+```{r prrweiayiouweayoiyessureg, echo=TRUE}
+##Para 20 nodos
+muestra <- sample(1:nrow(data2),floor(nrow(data2)*0.20))
+ttesting <- data2[muestra,]
+taprendizaje <- data2[-muestra,]
+
+modelo <- train.nnet(formula = Numero~., data = taprendizaje, size = 8, MaxNWts = 10000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r presraekrghaihgoiahgiosureg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+
+```{r pressurrgeagorighoehgeg, echo=TRUE}
+##Para 5 nodos
+muestra <- sample(1:nrow(data2),floor(nrow(data2)*0.20))
+ttesting <- data2[muestra,]
+taprendizaje <- data2[-muestra,]
+
+modelo <- train.nnet(formula = Numero~., data = taprendizaje, size = 5, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressureiorehgiohrgg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+```{r pressurewueiuewfhg, echo=TRUE}
+##Para 2 nodos
+muestra <- sample(1:nrow(data2),floor(nrow(data2)*0.20))
+ttesting <- data2[muestra,]
+taprendizaje <- data2[-muestra,]
+
+modelo <- train.nnet(formula = Numero~., data = taprendizaje, size = 2, MaxNWts = 5000, rang = 0.1, decay = 5e-4, maxit = 1000, trace = FALSE)
+
+prediccion <- predict(modelo, ttesting, type = "class")
+head(prediccion$prediction)
+```
+
+```{r pressurigroigjoeg, echo=TRUE}
+MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+indices.general(MC)
+```
+
+
+```{r presgeryurtuysureg, echo=TRUE}
+##neuralnet
+#muestra <- sample(1:nrow(data2),floor(nrow(data2)*0.20))
+#ttesting <- data2[muestra,]
+#taprendizaje <- data2[-muestra,]
+
+#modelo <- train.neuralnet(formula = Numero ~ . ,data = taprendizaje, linear.output = FALSE,threshold = 0.1, stepmax = 1e+06)
+
+#prediccion <- predict(modelo, ttesting, type = "class")
+#head(prediccion$prediction)
+```
+#No funciono, despues de alrededor de 20 min se procedio a terminar la corrida
+```{r pressugjfjhrreg, echo=TRUE}
+#MC <- confusion.matrix(ttesting, prediccion)
+# Índices de Calidad de la predicción
+#indices.general(MC)
+```
+
+En el caso de nnet entre mayor cantidad de capas ocultas parece mejor su desempeno, en este caso el de 8 capas ocultas fue el que mejor respondio. A pesar de ello, se estimacion tardo mucho en realizarse, podria mas adelante en un equipo con mas procesamiento tratar de estimarse mejor. La estimacion con 8 capas ocultas tuvo una precision global de 0.8682087, Es decir, podrian ser mejores existen aun muchos datos confundidos y la precision por categoria deberia mejorar.Se intento una neuralnet pero esta despues de mucho tiempo funcionando no funciono
+
+
+Precisión por categoría para 8 capas ocultas
+     cero     cinco    cuatro       dos     nueve      ocho      seis     siete      tres       uno 
+0.9543974 0.8145695 0.8023952 0.8676471 0.7449664 0.7460317 0.8742138 0.9102564 0.8187135 0.9702602
+
+3. Compare los resultados con los obtenidos en la tarea anterior.
+
+Debo senalarse que la red neuronal tanto nnet como neuralnet tardan mucho en procesar los datos, mucho mas que en el caso de los kvecinos, por lo que, para el uso de equipo con baja capacidad de procesamiento puede resultar mas optimo. En el caso de los kvecinos se obtuvieron mejores resultados. La precision global de 0.9585799, con kvecinos es superior que con la aproximacion de redes nnet. Es probeble que las redes neuronales funcionen mucho mejor con datos aun mas masivos, ademas de un equipo con mejor procesamiento.
+
+En el caso de los resultados de la tarea anterior la precision por categoria fue en todos los casos superior a 0,90 lo que no ocurrio en las redes neuronales.
+
+
+Precisión Global
+[1] 0.9585799
+
+Error Global
+[1] 0.04142012
+
+Precisión por categoría
+     cero     cinco    cuatro       dos     nueve      ocho      seis     siete      tres       uno 
+0.9965517 0.9034483 0.9329609 0.9542857 0.9553073 0.8957055 0.9565217 0.9810127 0.9689441 0.9919355 
+
+
+Ejercicio 4: [25 puntos] Para la Tabla de Datos que se muestra seguidamente donde x j para j = 1, 2, 3 son las variables predictoras y la variable a predecir es z dise˜ne y programe a pie una Red Neuronal de una capa (Perceptron):
+
+```{r prrtetwtwtessureg, echo=TRUE}
+X <- matrix(c(
+  1,0,0,
+  1,0,1,
+  1,1,0,
+  1,1,1
+),
+  ncol = 3,
+  byrow = TRUE
+)
+
+# variable por predecir
+y <- c(1, 1, 1, 0)
+
+# combinacion
+cbind(X, y)
+```
+
+Para esto escriba una funci´on en R que haga variar los pesos wj con j = 1, 2, 3 en los siguientes valores v=(-1,-0.9,-0.8,...,0,...,0.8,0.9,1) y haga variar θ en u=(0,0.1,...,0.8,0.9,1). Escoja los pesos wj con j = 1, 2, 3 y el umbral θ de manera que se minimiza el error cuadr´atico
+medio:
+
+```{r pressugfetgertreg, echo=TRUE}
+##tabla de datos
+X <- matrix(c(
+  1,0,0,
+  1,0,1,
+  1,1,0,
+  1,1,1
+),
+  ncol = 3,
+  byrow = TRUE
+)
+
+# variable por predecir
+y <- c(1, 1, 1, 0)
+# combinacion
+cbind(X, y)
+
+##Almacenar red
+# valor aleatorio
+rand_vector <- runif(ncol(X) * nrow(X))
+
+# vector a matriz
+rand_matrix <- matrix(
+  rand_vector,
+  nrow = ncol(X),
+  ncol = nrow(X),
+  byrow = TRUE
+)
+
+# entrenamiento
+my_nn <- list(
+  input = X,
+  weights1 = rand_matrix,
+  weights2 = matrix(runif(4), ncol = 1),
+  y = y,
+  output = matrix(
+    rep(0, times = 4),
+    ncol = 1
+  )
+)
+
+
+#funcion activacion
+sigmoid <- function(x) {
+  (2.0 / (1.0 + exp(-2*x)))-1
+}
+
+#derivada funcion activacion
+sigmoid_derivative <- function(x) {
+  -(2*exp(2)/(x+exp(2))^2)
+}
+
+#minimiza el error cuadratico medio
+loss_function <- function(nn) {
+  sum((nn$y - nn$output) ^ 2)
+}
+
+#propagacion hacia delante y atras de la funcion
+feedforward <- function(nn) {
+  nn$layer1 <- sigmoid(nn$input %*% nn$weights1)
+  nn$output <- sigmoid(nn$layer1 %*% nn$weights2)
+  nn
+}
+
+backprop <- function(nn) {
+  d_weights2 <- (t(nn$layer1) %*%((1/4)*( (nn$y - nn$output) *sigmoid_derivative(nn$output))))
+  d_weights1 <- (1/4)*((nn$y - nn$output) * sigmoid_derivative(nn$output)) %*% t(nn$weights2)
+  d_weights1 <- d_weights1 * sigmoid_derivative(nn$layer1)
+  d_weights1 <- t(nn$input) %*% d_weights1
+  nn$weights1 <- nn$weights1 + d_weights1
+  nn$weights2 <- nn$weights2 + d_weights2
+  nn
+}
+
+
+# aqui se adiciona un numero aleatorio autogenerado para definir propagacion adelante y hacia atras
+n <- 500
+
+#almacenamiento de estimacion
+loss_df <- data.frame(
+  iteration = 1:n,
+  loss = vector("numeric", length = n)
+)
+
+for (i in seq_len(n)) {
+  my_nn <- feedforward(my_nn)
+  my_nn <- backprop(my_nn)
+  loss_df$loss[i] <- loss_function(my_nn)
+}
+
+# estimado junto a verdadero
+data.frame(
+  "Predicted" = round(my_nn$output, 3),
+  "Actual" = y
+)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
