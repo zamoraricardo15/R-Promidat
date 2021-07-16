@@ -3,7 +3,9 @@ Data Mining homeworks, algorithms, and excercises
 
 Topics:
 1) Basic Concepts and R Programming
-2) Supervised Learning - Analytics//
+2) Supervised Learning - Analytics
+
+
     The K-Nearest Neighbors Method
       Distances and dissimilarities
       Confusion matrix
@@ -23,14 +25,14 @@ Topics:
       Random forests
       Boosting methods
       Extreme Gradient Boosting
-4) Calibration and Selection of Models
+3) Calibration and Selection of Models
     *Bootstraping
     *Cross-validation
-6) Big Data
+4) Big Data
     *Parallel Computing in R
     *Predictive processes in parallel
     *Parallel cross validation
-8) WEB Mining
+5) WEB Mining
     *Word clouds
     *Storage formats on the WEB (HTML, XML and JSON)
     *Regular Expressions and parsing of WEB pages
